@@ -302,13 +302,17 @@ float_types = [Float32, Float64]
     @testset "Dynamics tests" begin
         println("  Testing dynamics...")
         include("test_dynamics.jl")
-        @test inertial_wave_test()
-        @test passive_tracer_advection_test()
 
-        for fld in (:u, :v, :T, :S)
-            @test test_diffusion_simple(fld)
-            @test test_diffusion_budget(fld)
-            @test test_diffusion_cosine(fld)
+        for arch in archs
+            @test inertial_wave_test(arch=arch)
+            @test passive_tracer_advection_test(arch=arch)
+            @test thermal_wind_test(arch=arch)
+
+            for fld in (:u, :v, :T, :S)
+                @test test_diffusion_simple(fld, arch=arch)
+                @test test_diffusion_budget(fld, arch=arch)
+                @test test_diffusion_cosine(fld, arch=arch)
+            end
         end
     end
 end # Oceananigans tests

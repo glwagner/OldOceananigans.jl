@@ -50,13 +50,13 @@ function T_relative_error(model, T)
         (T_num.data .- T_ans.data).^2 ) / mean(T_ans.data.^2)
 end
 
-function test_diffusion_simple(fld)
+function test_diffusion_simple(fld; arch=CPU())
     Nx, Ny, Nz = 1, 1, 16
     Lx, Ly, Lz = 1, 1, 1
     κ = 1
     eos = LinearEquationOfState(βS=0, βT=0)
 
-    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=κ, κ=κ, eos=eos)
+    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=κ, κ=κ, eos=eos, arch=arch)
 
     if fld ∈ (:u, :v, :w)
         field = getfield(model.velocities, fld)
@@ -75,13 +75,13 @@ function test_diffusion_simple(fld)
 end
 
 
-function test_diffusion_budget(field_name)
+function test_diffusion_budget(field_name; arch=CPU())
     Nx, Ny, Nz = 1, 1, 16
     Lx, Ly, Lz = 1, 1, 1
     κ = 1
     eos = LinearEquationOfState(βS=0, βT=0)
 
-    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=κ, κ=κ, eos=eos)
+    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=κ, κ=κ, eos=eos, arch=arch)
 
     if field_name ∈ (:u, :v, :w)
         field = getfield(model.velocities, field_name)
@@ -102,15 +102,16 @@ function test_diffusion_budget(field_name)
     isapprox(mean_init, mean(field.data))
 end
 
-function test_diffusion_cosine(fld)
+function test_diffusion_cosine(fld; arch=CPU())
     Nx, Ny, Nz = 1, 1, 128
     Lx, Ly, Lz = 1, 1, π/2
     κ = 1
     eos = LinearEquationOfState(βS=0, βT=0)
 
-    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=κ, κ=κ, eos=eos)
+    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=κ, κ=κ, eos=eos,
+                    arch=arch)
 
-    if fld == :w
+    if fld === :w
         throw("There are no boundary condition tests for w yet.")
     elseif fld ∈ (:u, :v)
         field = getfield(model.velocities, fld)
@@ -135,8 +136,7 @@ function test_diffusion_cosine(fld)
     !any(@. !isapprox(field_numerical, diffusing_cosine(κ, m, zC, model.clock.time), atol=1e-6, rtol=1e-6))
 end
 
-
-function inertial_wave_test(; N=256, Δt=0.01, κ=1e-6, m=12, k=8, Nt=100)
+function inertial_wave_test(; arch=CPU(), N=256, Δt=0.01, κ=1e-6, m=12, k=8, Nt=100)
     # Numerical parameters
      L = 2π
      f = 1.0
@@ -162,7 +162,8 @@ function inertial_wave_test(; N=256, Δt=0.01, κ=1e-6, m=12, k=8, Nt=100)
     w₀(x, y, z) = w(x, y, z, 0)
 
     # Create the model.
-    model = Model(N=(N, 1, N), L=(L, L, L), ν=κ, κ=κ, constants=PlanetaryConstants(f=f))
+    model = Model(N=(N, 1, N), L=(L, L, L), ν=κ, κ=κ, arch=arch,
+                    constants=PlanetaryConstants(f=f))
 
     set_ic!(model, u=u₀, v=v₀, w=w₀)
     time_step!(model, Nt, Δt)
@@ -171,7 +172,7 @@ function inertial_wave_test(; N=256, Δt=0.01, κ=1e-6, m=12, k=8, Nt=100)
     u_relative_error(model, u) < 1e-2
 end
 
-function passive_tracer_advection_test(; N=128, κ=1e-12, Nt=100)
+function passive_tracer_advection_test(; arch=CPU(), N=128, κ=1e-12, Nt=100)
     L, U, V = 1.0, 0.5, 0.8
     δ, x₀, y₀ = L/15, L/2, L/2
 
@@ -182,11 +183,34 @@ function passive_tracer_advection_test(; N=128, κ=1e-12, Nt=100)
     v₀(x, y, z) = V
     T₀(x, y, z) = T(x, y, z, 0)
 
-    model = Model(N=(N, N, 2), L=(L, L, L), ν=κ, κ=κ)
+    model = Model(N=(N, N, 2), L=(L, L, L), ν=κ, κ=κ, arch=arch)
 
     set_ic!(model, u=u₀, v=v₀, T=T₀)
     time_step!(model, Nt, Δt)
 
     # Error tolerance is a bit arbitrary
     return T_relative_error(model, T) < 1e-4
+end
+
+function thermal_wind_test(; arch=CPU(), N=128, κ=1e-12, k=1, L=2π, f=1., p₀=1e-1)
+    Δt = 0.01 * L/N * f / (p₀*k)
+    tf = L/100 * f / (p₀*k)
+    z₀ = -L/2
+     δ = L/20
+    Nt = 100
+
+    pᶻ(x, y, z) = p₀ * exp( -(z-z₀)^2 / (2*δ)^2 )
+    T₀(x, y, z, t=0) = -(z-z₀) / δ^2 * pᶻ(x, y, z) * sin(k*x)
+    v₀(x, y, z) = pᶻ(x, y, z) * cos(k*x) * k / f
+
+    # Create the model.
+    model = Model(N=(N, 1, N), L=(L, L, L), ν=κ, κ=κ, arch=arch,
+                    eos=LinearEquationOfState(βT=1.),
+                    constants=PlanetaryConstants(f=f, g=1.))
+
+    set_ic!(model, v=v₀, T=T₀)
+    time_step!(model, Nt, Δt)
+
+    # Error tolerance is a bit arbitrary
+    return T_relative_error(model, T₀) < 1e-4
 end

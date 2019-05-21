@@ -22,6 +22,69 @@ function set_ic!(model; u=zerofunk, v=zerofunk, w=zerofunk, T=zerofunk, S=zerofu
     return nothing
 end
 
+plotxzslice(ϕ, slice=1, args...; kwargs...) = pcolormesh(
+    view(xnodes(ϕ), :, slice, :), view(znodes(ϕ), :, slice, :), view(ϕ.data, :, slice, :), args...; kwargs...)
+
+plotxyslice(ϕ, slice=1, args...; kwargs...) = pcolormesh(
+    view(xnodes(ϕ), :, :, slice), view(ynodes(ϕ), :, :, slice), view(ϕ.data, :, :, slice), args...; kwargs...)
+
+function total_kinetic_energy(model)
+    return 0.5 * (
+          sum(model.velocities.u.data.^2)
+        + sum(model.velocities.v.data.^2)
+        + sum(model.velocities.w.data.^2)
+        )
+end
+
+function total_kinetic_energy(u, v, w)
+    return 0.5 * (sum(u.data.^2) + sum(v.data.^2) + sum(w.data.^2))
+end
+
+function total_energy(model, N)
+    b = model.tracers.T.data .- mean(model.tracers.T.data, dims=(1, 2))
+    return 0.5 * (
+          sum(model.velocities.u.data.^2)
+        + sum(model.velocities.v.data.^2)
+        + sum(model.velocities.w.data.^2)
+        + sum(b.^2) / N^2
+        )
+end
+
+
+function w_relative_error(model, w)
+    w_ans = FaceFieldZ(w.(
+        xnodes(model.velocities.w),
+        ynodes(model.velocities.w),
+        znodes(model.velocities.w),
+        model.clock.time), model.grid)
+
+    return mean(
+        (model.velocities.w.data .- w_ans.data).^2) / mean(w_ans.data.^2)
+
+end
+
+function u_relative_error(model, u)
+    u_ans = FaceFieldX(u.(
+        xnodes(model.velocities.u),
+        ynodes(model.velocities.u),
+        znodes(model.velocities.u),
+        model.clock.time), model.grid)
+
+    return mean(
+        (model.velocities.u.data .- u_ans.data).^2 ) / mean(u_ans.data.^2)
+end
+
+function T_relative_error(model, T)
+    T_ans = CellField(T.(
+        xnodes(model.tracers.T),
+        ynodes(model.tracers.T),
+        znodes(model.tracers.T),
+        model.clock.time), model.grid)
+
+    return mean(
+        (model.tracers.T.data .- T_ans.data).^2 ) / mean(T_ans.data.^2)
+end
+
 """
     make_vertical_slice_movie(model::Model, nc_writer::NetCDFOutputWriter,
                               var_name, Nt, Δt, var_offset=0, slice_idx=1)
