@@ -2,7 +2,49 @@ using Oceananigans, Printf, PyPlot
 
 include("utils.jl")
 
-function makeplot(axs, model, w)
+function makeplot_u(axs, model, u)
+    u_num = model.velocities.u
+    u_ans = FaceFieldX(u.(xnodes(u_num), ynodes(u_num), znodes(u_num),
+                        model.clock.time), model.grid)
+
+    sca(axs[1])
+    PyPlot.plot(u_ans[1, 1, :], "-", linewidth=2, alpha=0.4)
+    PyPlot.plot(u_num[1, 1, :], "--", linewidth=1)
+
+    sca(axs[2])
+    PyPlot.plot(u_ans[1, 1, :] .- u_num[1, 1, :], "-")
+
+    sca(axs[3])
+    plotxzslice(u_num)
+
+    sca(axs[4])
+    plotxzslice(u_ans)
+
+    return nothing
+end
+
+function makeplot_v(axs, model, v)
+    v_num = model.velocities.v
+    v_ans = FaceFieldY(v.(xnodes(v_num), ynodes(v_num), znodes(v_num),
+                        model.clock.time), model.grid)
+
+    sca(axs[1])
+    PyPlot.plot(v_ans[1, 1, :], "-", linewidth=2, alpha=0.4)
+    PyPlot.plot(v_num[1, 1, :], "--", linewidth=1)
+
+    sca(axs[2])
+    PyPlot.plot(v_ans[1, 1, :] .- v_num[1, 1, :], "-")
+
+    sca(axs[3])
+    plotxzslice(v_num)
+
+    sca(axs[4])
+    plotxzslice(v_ans)
+
+    return nothing
+end
+
+function makeplot_w(axs, model, w)
     w_num = model.velocities.w
     w_ans = FaceFieldZ(w.(xnodes(w_num), ynodes(w_num), znodes(w_num),
                         model.clock.time), model.grid)
@@ -23,10 +65,31 @@ function makeplot(axs, model, w)
     return nothing
 end
 
+function makeplot_T(axs, model, T)
+    T_num = model.tracers.T
+    T_ans = CellField(T.(xnodes(T_num), ynodes(T_num), znodes(T_num),
+                        model.clock.time), model.grid)
+
+    sca(axs[1])
+    PyPlot.plot(T_ans[1, 1, :] .- dropdims(mean(T_num.data, dims=(1, 2)), dims=(1, 2)), "-", linewidth=2, alpha=0.4)
+    PyPlot.plot(T_num[1, 1, :] .- dropdims(mean(T_ans.data, dims=(1, 2)), dims=(1, 2)), "--", linewidth=1)
+
+    sca(axs[2])
+    PyPlot.plot(T_ans[1, 1, :] .- T_num[1, 1, :], "-")
+
+    sca(axs[3])
+    plotxzslice(T_num)
+
+    sca(axs[4])
+    plotxzslice(T_ans)
+
+    return nothing
+end
+
 # Internal wave parameters
-a₀ = 1e-9
- m = 20
- k = 4
+a₀ = 1e-6
+ m = 12
+ k = 2
  f = 0.2
  ℕ = 1.0
  σ = sqrt( (ℕ^2*k^2 + f^2*m^2) / (k^2 + m^2) )
@@ -42,11 +105,11 @@ W = a₀ * m * σ   / (σ^2 - ℕ^2)
  # Numerical parameters
 @show N = 512
  L = 2π
-Δt = 0.1 * 1/σ
+Δt = 0.05 * 1/σ
  ν = κ = 1e-6
 z₀ = -L/3
  δ = L/20
-Nt = 100
+Nt = 200
 
 a(x, y, z, t) = exp( -(z - cᵍ*t - z₀)^2 / (2*δ)^2 )
 
@@ -73,7 +136,10 @@ fig, axs = subplots(nrows=4, figsize=(8, 8))
 
 for i = 1:3
     time_step!(model, Nt, Δt)
-    makeplot(axs, model, u)
+    makeplot_u(axs, model, v)
+    #makeplot_v(axs, model, v)
+    #makeplot_w(axs, model, w)
+    #makeplot_T(axs, model, T)
     @show total_energy(model, ℕ)
     @show total_kinetic_energy(model)
     @show w_relative_error(model, w)
