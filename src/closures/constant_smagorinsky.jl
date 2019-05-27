@@ -1,8 +1,9 @@
 Base.@kwdef struct ConstantSmagorinsky{T} <: IsotropicDiffusivity{T}
-               C :: T = 0.23
+              Cs :: T = 0.2
+              Cb :: T = 1.0
               Pr :: T = 1.0
-    ν_background :: T = 0.0
-    κ_background :: T = 0.0
+    ν_background :: T = 1e-6
+    κ_background :: T = 1e-7
 end
 
 """
@@ -73,17 +74,81 @@ end
 Δ_fcf = Δ
 Δ_cff = Δ
 
-ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
-    (clo.C * Δ_ccc(i, j, k, grid, clo))^2 * sqrt(2 * ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)) + clo.ν_background
+"""
+    buoyancy(i, j, k, grid, eos, g, T, S)
 
-ν_ffc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
-    (clo.C * Δ_ffc(i, j, k, grid, clo))^2 * sqrt(2 * ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)) + clo.ν_background
+Calculate the buoyancy at grid point `i, j, k` associated with `eos`, 
+gravitational acceleration `g`, temperature `T`,  and salinity `S`.
+"""
+buoyancy(i, j, k, grid, eos::LinearEquationOfState, g, T, S) = 
+    g * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )
 
-ν_fcf(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
-    (clo.C * Δ_fcf(i, j, k, grid, clo))^2 * sqrt(2 * ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)) + clo.ν_background
+"""
+    stability(N², Σ², Pr, Cb)
 
-ν_cff(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
-    (clo.C * Δ_cff(i, j, k, grid, clo))^2 * sqrt(2 * ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)) + clo.ν_background
+Return the stability function 
 
-κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
-    (clo.C * Δ_ccc(i, j, k, grid, clo))^2 * sqrt(2 * ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)) / clo.Pr + clo.κ_background
+``1 - Cb N^2 / (Pr Σ^2)``
+
+when ``N^2 > 0``, and 1 otherwise.
+"""
+stability(N², Σ², Pr, Cb::T) where T = min(one(T), max(zero(T), sqrt(one(T) - Cb * N² / (Pr*Σ²))))
+
+"""
+    νₑ(ς, Cs, Δ, Σ²)
+
+Return the eddy viscosity for constant Smagorinsky
+given the stability `ς`, model constant `Cs`, 
+filter with `Δ`, and strain tensor dot product `Σ²`.
+"""
+νₑ(ς, Cs, Δ, Σ²) = ς * (Cs*Δ)^2 * sqrt(2Σ²)
+
+function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+    Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
+    Δ = Δ_ccc(i, j, k, grid, clo)
+
+    ς = stability(N², Σ², clo.Pr, clo.Cb)
+
+    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
+end
+
+function ν_ffc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+    N² = ▶xyz_ffc(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+    Σ² = ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
+    Δ = Δ_ffc(i, j, k, grid, clo)
+
+    ς = stability(N², Σ², clo.Pr, clo.Cb)
+
+    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
+end
+
+function ν_fcf(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+    N² = ▶x_faa(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+    Σ² = ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
+    Δ = Δ_fcf(i, j, k, grid, clo)
+
+    ς = stability(N², Σ², clo.Pr, clo.Cb)
+
+    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
+end
+
+function ν_cff(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+    N² = ▶y_afa(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+    Σ² = ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)
+    Δ = Δ_cff(i, j, k, grid, clo)
+
+    ς = stability(N², Σ², clo.Pr, clo.Cb)
+
+    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
+end
+
+function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+    Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
+    Δ = Δ_ccc(i, j, k, grid, clo)
+
+    ς = stability(N², Σ², clo.Pr, clo.Cb)
+
+    return νₑ(ς, clo.Cs, Δ, Σ²) / clo.Pr + clo.κ_background
+end
