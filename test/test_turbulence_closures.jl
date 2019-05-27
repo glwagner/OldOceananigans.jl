@@ -143,6 +143,23 @@ function test_anisotropic_diffusivity_fluxdiv(TF=Float64; νh=TF(0.3), κh=TF(0.
             )
 end
 
+function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
+    closure = ConstantSmagorinsky(TF; Cs=0.0, ν_background=νᵇ, κ_background=κᵇ)
+    grid = RegularCartesianGrid(TF, (5, 5, 5), (5, 5, 5))
+    eos = LinearEquationOfState()
+    g = 1.0
+    u, v, w = rand(TF, size(grid)...), rand(TF, size(grid)...), rand(TF, size(grid)...)
+    T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
+
+    return (
+            ν₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
+            ν₁₁.ffc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
+            ν₁₁.fcf(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
+            ν₁₁.cff(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
+            κ₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(κᵇ)
+        )
+end
+
 function test_smag_divflux_finiteness(TF=Float64)
     closure = ConstantSmagorinsky(TF)
     grid = RegularCartesianGrid(TF, (3, 3, 3), (3, 3, 3))
@@ -156,5 +173,21 @@ function test_smag_divflux_finiteness(TF=Float64)
         isfinite(∂ⱼ_2ν_Σ₁ⱼ(2, 1, 2, grid, closure, eos, g, u, v, w, T, S)) &&
         isfinite(∂ⱼ_2ν_Σ₂ⱼ(2, 1, 2, grid, closure, eos, g, u, v, w, T, S)) &&
         isfinite(∂ⱼ_2ν_Σ₃ⱼ(2, 1, 2, grid, closure, eos, g, u, v, w, T, S))
+        )
+end
+
+function test_smag_divflux_nonzeroness(TF=Float64)
+    closure = ConstantSmagorinsky(TF; Cb=0.0)
+    grid = RegularCartesianGrid(TF, (5, 5, 5), (5, 5, 5))
+    eos = LinearEquationOfState()
+    g = 1.0
+    u, v, w = rand(TF, size(grid)...), rand(TF, size(grid)...), rand(TF, size(grid)...)
+    T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
+
+    return (
+        ∇_κ_∇ϕ(3, 3, 3, grid, T, closure, eos, g, u, v, w, T, S) != 0 &&
+        ∂ⱼ_2ν_Σ₁ⱼ(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) != 0 &&
+        ∂ⱼ_2ν_Σ₂ⱼ(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) != 0 &&
+        ∂ⱼ_2ν_Σ₃ⱼ(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) != 0
         )
 end

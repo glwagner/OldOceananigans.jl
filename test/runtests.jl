@@ -16,6 +16,7 @@ float_types = (Float32, Float64)
 @testset "Oceananigans" begin
     println("Testing Oceananigans...")
 
+    #=
     @testset "Grid" begin
         println("  Testing grids...")
         include("test_grids.jl")
@@ -348,6 +349,7 @@ float_types = (Float32, Float64)
             @test test_diffusion_cosine(fld)
         end
     end
+    =#
 
     @testset "Turbulence closures tests" begin
         println("  Testing turbulence closures...")
@@ -367,7 +369,9 @@ float_types = (Float32, Float64)
             @test test_anisotropic_diffusivity_fluxdiv(T, νv=zero(T), νh=zero(T))
             @test test_anisotropic_diffusivity_fluxdiv(T)
 
+            @test test_smag_sanity(T)
             @test test_smag_divflux_finiteness(T)
+            @test test_smag_divflux_nonzeroness(T)
         end
     end
 end # Oceananigans tests
