@@ -27,7 +27,9 @@ export
   ▶xy_fca, ▶xz_fac, ▶yz_afc,
   ▶xy_ffa, ▶xz_faf, ▶yz_aff
 
-using Oceananigans, Oceananigans.Operators
+using 
+    Oceananigans, 
+    Oceananigans.Operators
 
 using Oceananigans.Operators: incmod1, decmod1
 
@@ -35,7 +37,7 @@ abstract type TurbulenceClosure{T} end
 abstract type IsotropicDiffusivity{T} <: TurbulenceClosure{T} end
 abstract type TensorDiffusivity{T} <: TurbulenceClosure{T} end
 
-# Tensors... !
+# Tensor transport coefficient simplifications
 κ₁₁_ccc(i, j, k, grid, closure::IsotropicDiffusivity, args...) = κ_ccc(i, j, k, grid, closure, args...)
 κ₂₂_ccc(i, j, k, grid, closure::IsotropicDiffusivity, args...) = κ_ccc(i, j, k, grid, closure, args...)
 κ₃₃_ccc(i, j, k, grid, closure::IsotropicDiffusivity, args...) = κ_ccc(i, j, k, grid, closure, args...)
@@ -61,7 +63,7 @@ geo_mean_Δ(grid::RegularCartesianGrid) = (grid.Δx * grid.Δy * grid.Δz)^(1/3)
 function typed_keyword_constructor(T, Closure; kwargs...)
     closure = Closure(; kwargs...)
     names = fieldnames(Closure)
-    vals = [getproperty(closure, name) for name in names]
+    vals = [convert(T, getproperty(closure, name)) for name in names]
     return Closure{T}(vals...)
 end
 
