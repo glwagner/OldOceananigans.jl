@@ -1,88 +1,114 @@
-using Plots
-using Oceananigans
+using
+    NetCDF,
+    Plots,
+    PyPlot,
+    Oceananigans,
+    Statistics
 
-using Statistics
+@hascuda using CuArrays
 
-xnodes(ϕ) = repeat(reshape(ϕ.grid.xC, ϕ.grid.Nx, 1, 1), 1, ϕ.grid.Ny, ϕ.grid.Nz)
-ynodes(ϕ) = repeat(reshape(ϕ.grid.yC, 1, ϕ.grid.Ny, 1), ϕ.grid.Nx, 1, ϕ.grid.Nz)
-znodes(ϕ) = repeat(reshape(ϕ.grid.zC, 1, 1, ϕ.grid.Nz), ϕ.grid.Nx, ϕ.grid.Ny, 1)
+xnodes(ϕ) = reshape(ϕ.grid.xC, ϕ.grid.Nx, 1, 1)
+ynodes(ϕ) = reshape(ϕ.grid.yC, 1, ϕ.grid.Ny, 1)
+znodes(ϕ) = reshape(ϕ.grid.zC, 1, 1, ϕ.grid.Nz)
 
-xnodes(ϕ::FaceFieldX) = repeat(reshape(ϕ.grid.xF[1:end-1], ϕ.grid.Nx, 1, 1), 1, ϕ.grid.Ny, ϕ.grid.Nz)
-ynodes(ϕ::FaceFieldY) = repeat(reshape(ϕ.grid.yF[1:end-1], 1, ϕ.grid.Ny, 1), ϕ.grid.Nx, 1, ϕ.grid.Nz)
-znodes(ϕ::FaceFieldZ) = repeat(reshape(ϕ.grid.zF[1:end-1], 1, 1, ϕ.grid.Nz), ϕ.grid.Nx, ϕ.grid.Ny, 1)
+xnodes(ϕ::FaceFieldX) = reshape(ϕ.grid.xF[1:end-1], ϕ.grid.Nx, 1, 1)
+ynodes(ϕ::FaceFieldY) = reshape(ϕ.grid.yF[1:end-1], 1, ϕ.grid.Ny, 1)
+znodes(ϕ::FaceFieldZ) = reshape(ϕ.grid.zF[1:end-1], 1, 1, ϕ.grid.Nz)
+
+nodes(ϕ) = (xnodes(ϕ), ynodes(ϕ), znodes(ϕ))
+
+fieldkind(ϕ::F) where F = F
+
+x3d(ϕ) = repeat(reshape(ϕ.grid.xC, ϕ.grid.Nx, 1, 1), 1, ϕ.grid.Ny, ϕ.grid.Nz)
+y3d(ϕ) = repeat(reshape(ϕ.grid.yC, 1, ϕ.grid.Ny, 1), ϕ.grid.Nx, 1, ϕ.grid.Nz)
+z3d(ϕ) = repeat(reshape(ϕ.grid.zC, 1, 1, ϕ.grid.Nz), ϕ.grid.Nx, ϕ.grid.Ny, 1)
+
+x3d(ϕ::FaceFieldX) = repeat(reshape(ϕ.grid.xF[1:end-1], ϕ.grid.Nx, 1, 1), 1, ϕ.grid.Ny, ϕ.grid.Nz)
+y3d(ϕ::FaceFieldY) = repeat(reshape(ϕ.grid.yF[1:end-1], 1, ϕ.grid.Ny, 1), ϕ.grid.Nx, 1, ϕ.grid.Nz)
+z3d(ϕ::FaceFieldZ) = repeat(reshape(ϕ.grid.zF[1:end-1], 1, 1, ϕ.grid.Nz), ϕ.grid.Nx, ϕ.grid.Ny, 1)
 
 zerofunk(args...) = 0
 
-function set_ic!(model; u=zerofunk, v=zerofunk, w=zerofunk, T=zerofunk, S=zerofunk)
-    model.velocities.u.data .= u.(xnodes(model.velocities.u), ynodes(model.velocities.u), znodes(model.velocities.u))
-    model.velocities.v.data .= v.(xnodes(model.velocities.v), ynodes(model.velocities.v), znodes(model.velocities.v))
-    model.velocities.w.data .= w.(xnodes(model.velocities.w), ynodes(model.velocities.w), znodes(model.velocities.w))
-    model.tracers.T.data    .= T.(xnodes(model.tracers.T),    ynodes(model.tracers.T),    znodes(model.tracers.T))
-    model.tracers.S.data    .= S.(xnodes(model.tracers.S),    ynodes(model.tracers.S),    znodes(model.tracers.S))
+arraytype(::CPU) = Array
+@hascuda arraytype(::GPU) = CuArray
+
+function set_ic!(model::Model{A}; u=zerofunk, v=zerofunk, w=zerofunk, 
+                    T=zerofunk, S=zerofunk) where A
+
+    ArrayType = arraytype(A())
+
+    model.velocities.u.data .= ArrayType(u.(nodes(model.velocities.u)...)) 
+    model.velocities.v.data .= ArrayType(v.(nodes(model.velocities.v)...))
+    model.velocities.w.data .= ArrayType(w.(nodes(model.velocities.w)...))
+    model.tracers.T.data    .= ArrayType(T.(nodes(model.tracers.T)...))
+    model.tracers.S.data    .= ArrayType(S.(nodes(model.tracers.S)...))
+
+    model.clock.time = 0
+    model.clock.iteration = 0
+
+    for ϕname in (:Gu, :Gv, :Gw, :GT, :GS)
+        ϕ = getproperty(model.G, ϕname)
+        @. ϕ.data .= 0
+        ϕ = getproperty(model.Gp, ϕname)
+        @. ϕ.data .= 0
+    end
+
+    return nothing
+end
+
+function set_noslip_bcs!(model)
+    model.boundary_conditions.u.z.top = BoundaryCondition(Value, -0.0)
+    model.boundary_conditions.v.z.top = BoundaryCondition(Value, -0.0)
+    model.boundary_conditions.u.z.bottom = BoundaryCondition(Value, -0.0)
+    model.boundary_conditions.v.z.bottom = BoundaryCondition(Value, -0.0)
     return nothing
 end
 
 plotxzslice(ϕ, slice=1, args...; kwargs...) = pcolormesh(
-    view(xnodes(ϕ), :, slice, :), view(znodes(ϕ), :, slice, :), view(ϕ.data, :, slice, :), args...; kwargs...)
+    view(x3d(ϕ), :, slice, :), view(z3d(ϕ), :, slice, :), view(ϕ.data, :, slice, :), args...; kwargs...)
 
 plotxyslice(ϕ, slice=1, args...; kwargs...) = pcolormesh(
-    view(xnodes(ϕ), :, :, slice), view(ynodes(ϕ), :, :, slice), view(ϕ.data, :, :, slice), args...; kwargs...)
+    view(x3d(ϕ), :, :, slice), view(y3d(ϕ), :, :, slice), view(ϕ.data, :, :, slice), args...; kwargs...)
 
-function total_kinetic_energy(model)
-    return 0.5 * (
-          sum(model.velocities.u.data.^2)
-        + sum(model.velocities.v.data.^2)
-        + sum(model.velocities.w.data.^2)
-        )
+ΔV(grid) = grid.Δx * grid.Δy * grid.Δz
+
+function buoyancy_flux(model::Model{A}) where A
+    Nz = model.grid.Nz
+    βT = model.eos.βT
+     g = model.constants.g
+     w = model.velocities.w
+     T = model.tracers.T
+
+    wb = CellField(A(), model.grid)
+
+    @views @. wb.data[:, :, 1:Nz-1] = g * βT * (
+        T.data[:, :, 1:Nz-1] * 0.5 * (w.data[:, :, 1:Nz-1] + w.data[:, :, 2:Nz]))
+
+    @views @. wb.data[:, :, Nz] = g * βT * (
+        T.data[:, :, Nz] * 0.5 * w.data[:, :, Nz]) # w[Nz+1] = 0 due to no-penetration
+
+    return wb
 end
 
-function total_kinetic_energy(u, v, w)
-    return 0.5 * (sum(u.data.^2) + sum(v.data.^2) + sum(w.data.^2))
+function cfl(Δt, model)
+    umax = maximum(abs.(model.velocities.u.data))
+    vmax = maximum(abs.(model.velocities.v.data))
+    wmax = maximum(abs.(model.velocities.w.data))
+
+    Δmin = min(model.grid.Δx, model.grid.Δy, model.grid.Δz)
+
+    return Δt * max(umax, vmax, wmax) / Δmin
 end
 
-function total_energy(model, N)
-    b = model.tracers.T.data .- mean(model.tracers.T.data, dims=(1, 2))
-    return 0.5 * (
-          sum(model.velocities.u.data.^2)
-        + sum(model.velocities.v.data.^2)
-        + sum(model.velocities.w.data.^2)
-        + sum(b.^2) / N^2
-        )
-end
+total_kinetic_energy(model) = total_kinetic_energy(model.velocities...)
 
+total_kinetic_energy(u, v, w) = ΔV(u.grid) / 2 * (
+    sum(u.data.^2) + sum(v.data.^2) + sum(w.data.^2))
 
-function w_relative_error(model, w)
-    w_ans = FaceFieldZ(w.(
-        xnodes(model.velocities.w),
-        ynodes(model.velocities.w),
-        znodes(model.velocities.w),
-        model.clock.time), model.grid)
-
-    return mean(
-        (model.velocities.w.data .- w_ans.data).^2) / mean(w_ans.data.^2)
-
-end
-
-function u_relative_error(model, u)
-    u_ans = FaceFieldX(u.(
-        xnodes(model.velocities.u),
-        ynodes(model.velocities.u),
-        znodes(model.velocities.u),
-        model.clock.time), model.grid)
-
-    return mean(
-        (model.velocities.u.data .- u_ans.data).^2 ) / mean(u_ans.data.^2)
-end
-
-function T_relative_error(model, T)
-    T_ans = CellField(T.(
-        xnodes(model.tracers.T),
-        ynodes(model.tracers.T),
-        znodes(model.tracers.T),
-        model.clock.time), model.grid)
-
-    return mean(
-        (model.tracers.T.data .- T_ans.data).^2 ) / mean(T_ans.data.^2)
+function relative_error(ϕ_num, ϕ_ans)
+    Field = fieldkind(ϕ_num)
+    ϕ_ans = Field(ϕ_ans.(nodes(ϕ_num)...))
+    return mean((ϕ_num.data .- ϕ_ans.data).^2) / mean(ϕ_ans.data.^2)
 end
 
 """
@@ -174,8 +200,6 @@ function make_vertical_profile_movie(model::Model, nc_writer::NetCDFOutputWriter
 
     mp4(animation, nc_writer.filename_prefix * "$(round(Int, time())).mp4", fps=30)
 end
-
-using NetCDF
 
 function make_avg_temperature_profile_movie()
     Nt, dt = 86400, 0.5
