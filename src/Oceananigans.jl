@@ -100,7 +100,10 @@ export
     prettytime,
 
     # Turbulence closures
-    TurbulenceClosures
+    TurbulenceClosures,
+    ConstantIsotropicDiffusivity,
+    ConstantAnisotropicDiffusivity,
+    ConstantSmagorinsky
 
 # Standard library modules
 using
