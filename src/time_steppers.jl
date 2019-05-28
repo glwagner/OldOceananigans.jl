@@ -144,8 +144,6 @@ function calculate_interior_source_terms!(grid::Grid, constants, eos, closure, u
     grav = constants.g
     fCor = constants.f
     ρ₀ = eos.ρ₀
-    𝜈h, 𝜈v = closure.νh, closure.νv
-    κh, κv = closure.κh, closure.κv
 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
