@@ -3,9 +3,11 @@ using Oceananigans, Printf
 include("utils.jl")
 
 function makeplot(axs, model    )
+    wb = buoyancy_flux(model)
+
     sca(axs[1])
-    plotxzslice(model.tracers.S, cmap="RdBu_r")
-    title("Passive tracer")
+    plotxzslice(wb, cmap="RdBu_r")
+    title("Buoyancy flux")
 
     sca(axs[2])
     plotxzslice(model.tracers.T, cmap="RdBu_r")
@@ -24,7 +26,7 @@ end
 # Parameters
 #
       α = 2                 # aspect ratio
-      n = 1                 # resolution multiple
+      n = 2                 # resolution multiple
      Ra = 1e6               # Rayleigh number
 Nx = Ny = 16n * α           # horizontal resolution
 Lx = Ly = 1.0 * α           # horizontal extent
@@ -91,10 +93,10 @@ fig, axs = subplots(nrows=2)
 """, Nx, Ny, Nz, Ra)
 
 for i = 1:100
-    walltime = @elapsed time_step!(model, 1, Δt)
+    walltime = @elapsed time_step!(model, 10, Δt)
 
-    makeplot(axs, model)
-    gcf()
+    #makeplot(axs, model)
+    #gcf()
 
     wb = buoyancy_flux(model)
     @printf("i: %d, t: %.2e, CFL: %.4f, Nuʷᵇ: %.3f, wall: %s\n", model.clock.iteration,
