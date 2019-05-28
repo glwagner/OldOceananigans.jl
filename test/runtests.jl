@@ -327,7 +327,10 @@ float_types = (Float32, Float64)
             end
 
             @testset "Rayleigh-Benard-tracer $(typeof(arch))" begin
-                run_rayleigh_benard_regression_test(arch)
+                for closure in (:ConstantSmagorinsky, :ConstantIsotropicDiffusivity,
+                                :ConstantAnisotropicDiffusivity)
+                    run_rayleigh_benard_regression_test(arch, closure)
+                end
             end
         end
 

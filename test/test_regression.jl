@@ -153,7 +153,16 @@ function run_deep_convection_regression_tests()
     @test_skip all(model.tracers.S.data    .≈ S)
 end
 
-function run_rayleigh_benard_regression_test(arch)
+Closure(::Val{:ConstantSmagorinsky}, ν, κ) =
+    ConstantSmagorinsky(Cs=0.0, ν_background=ν, κ_background=κ)
+
+Closure(::Val{:ConstantIsotropicDiffusivity, ν, κ) =
+    ConstantIsotropicDiffusivity(ν=ν, κ=κ)
+
+Closure(::Val{:ConstantAnisotropicDiffusivity}, ν, κ) =
+    ConstantIsotropicDiffusivity(νv=ν, νh=ν, κv=κ, κh=κ)
+
+function run_rayleigh_benard_regression_test(arch, closure)
 
     #
     # Parameters
@@ -181,10 +190,9 @@ function run_rayleigh_benard_regression_test(arch)
          arch = arch,
             N = (Nx, Ny, Nz),
             L = (Lx, Ly, Lz),
-            ν = ν,
-            κ = κ,
           eos = LinearEquationOfState(βT=1., βS=0.),
     constants = PlanetaryConstants(g=1., f=0.)
+      closure = Closure(Val(closure), ν, κ)
     )
 
     # Constant buoyancy boundary conditions on "temperature"
