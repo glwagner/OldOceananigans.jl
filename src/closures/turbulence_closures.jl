@@ -1,31 +1,35 @@
 module TurbulenceClosures
 
 export
-  MolecularDiffusivity,
-  ConstantIsotropicDiffusivity,
-  ConstantAnisotropicDiffusivity,
-  ConstantSmagorinsky,
+    TurbulenceClosure,
+    IsotropicDiffusivity,
+    TensorDiffusivity,
 
-  ∇_κ_∇ϕ,
-  ∂ⱼ_2ν_Σ₁ⱼ,
-  ∂ⱼ_2ν_Σ₂ⱼ,
-  ∂ⱼ_2ν_Σ₃ⱼ,
+    MolecularDiffusivity,
+    ConstantIsotropicDiffusivity,
+    ConstantAnisotropicDiffusivity,
+    ConstantSmagorinsky,
 
-  ν₁₁, ν₂₂, ν₃₃,
-  κ₁₁, κ₂₂, κ₃₃,
+    ∇_κ_∇ϕ,
+    ∂ⱼ_2ν_Σ₁ⱼ,
+    ∂ⱼ_2ν_Σ₂ⱼ,
+    ∂ⱼ_2ν_Σ₃ⱼ,
 
-  ∂x_caa, ∂x_faa, ∂x²_caa, ∂x²_faa,
-  ∂y_aca, ∂y_afa, ∂y²_aca, ∂y²_afa,
-  ∂z_aac, ∂z_aaf, ∂z²_aac, ∂z²_aaf,
+    ν₁₁, ν₂₂, ν₃₃,
+    κ₁₁, κ₂₂, κ₃₃,
 
-  ▶x_caa, ▶x_faa,
-  ▶y_aca, ▶y_afa,
-  ▶z_aac, ▶z_aaf,
+    ∂x_caa, ∂x_faa, ∂x²_caa, ∂x²_faa,
+    ∂y_aca, ∂y_afa, ∂y²_aca, ∂y²_afa,
+    ∂z_aac, ∂z_aaf, ∂z²_aac, ∂z²_aaf,
 
-  ▶xy_cca, ▶xz_cac, ▶yz_acc,
-  ▶xy_cfa, ▶xz_caf, ▶yz_acf,
-  ▶xy_fca, ▶xz_fac, ▶yz_afc,
-  ▶xy_ffa, ▶xz_faf, ▶yz_aff
+    ▶x_caa, ▶x_faa,
+    ▶y_aca, ▶y_afa,
+    ▶z_aac, ▶z_aaf,
+
+    ▶xy_cca, ▶xz_cac, ▶yz_acc,
+    ▶xy_cfa, ▶xz_caf, ▶yz_acf,
+    ▶xy_fca, ▶xz_fac, ▶yz_afc,
+    ▶xy_ffa, ▶xz_faf, ▶yz_aff
 
 using 
     Oceananigans, 
@@ -58,7 +62,7 @@ abstract type TensorDiffusivity{T} <: TurbulenceClosure{T} end
 ν₂₂_cff(i, j, k, grid, closure::IsotropicDiffusivity, args...) = ν_cff(i, j, k, grid, closure, args...)
 ν₃₃_cff(i, j, k, grid, closure::IsotropicDiffusivity, args...) = ν_cff(i, j, k, grid, closure, args...)
 
-geo_mean_Δ(grid::RegularCartesianGrid) = (grid.Δx * grid.Δy * grid.Δz)^(1/3)
+geo_mean_Δ(grid::RegularCartesianGrid{T}) where T = (grid.Δx * grid.Δy * grid.Δz)^T(1/3)
 
 function typed_keyword_constructor(T, Closure; kwargs...)
     closure = Closure(; kwargs...)
