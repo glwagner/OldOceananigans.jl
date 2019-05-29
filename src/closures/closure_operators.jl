@@ -418,7 +418,6 @@ in `y` and `z`, from `afc` to `acf`.
 """
 @inline ▶yz_acf(i, j, k, grid, F, args...) = ▶z_aaf(i, j, k, grid, ▶y_aca, F, args...)
 
-<<<<<<< HEAD
 """
     ▶xyc_ffc(i, j, k, grid, F, args...)
 
@@ -428,7 +427,7 @@ Interpolate the function
 
 in `x`, `y`, and `z` from `ccf` to `ffc`.
 """
-▶xyz_ffc(i, j, k, grid, F, args...) = ▶x_faa(i, j, k, grid, ▶y_afa, ▶z_aac, F, args...)
+@inline ▶xyz_ffc(i, j, k, grid, F, args...) = ▶x_faa(i, j, k, grid, ▶y_afa, ▶z_aac, F, args...)
 
 @inline ν_Σᵢⱼ(i, j, k, grid, ν, Σᵢⱼ, closure, eos, g, u, v, w, T, S) =
     ν(i, j, k, grid, closure, eos, g, u, v, w, T, S) * Σᵢⱼ(i, j, k, grid, u, v, w)
