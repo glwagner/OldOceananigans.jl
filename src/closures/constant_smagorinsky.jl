@@ -21,7 +21,7 @@ ConstantSmagorinsky(T; kwargs...) =
       typed_keyword_constructor(T, ConstantSmagorinsky; kwargs...)
 
 "Return the filter width for Constant Smagorinsky on a Regular Cartesian grid."
-Δ(i, j, k, grid::RegularCartesianGrid, ::ConstantSmagorinsky) = geo_mean_Δ(grid)
+@inline Δ(i, j, k, grid::RegularCartesianGrid, ::ConstantSmagorinsky) = geo_mean_Δ(grid)
 
 # tr_Σ² : ccc
 #   Σ₁₂ : ffc
@@ -29,7 +29,7 @@ ConstantSmagorinsky(T; kwargs...) =
 #   Σ₂₃ : cff
 
 "Return the double dot product of strain at `ccc`."
-function ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
+@inline function ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
     return (
                     tr_Σ²(i, j, k, grid, u, v, w)
             + 2 * ▶xy_cca(i, j, k, grid, Σ₁₂², u, v, w)
@@ -39,7 +39,7 @@ function ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
 end
 
 "Return the double dot product of strain at `ffc`."
-function ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
+@inline function ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
     return (
                   ▶xy_ffa(i, j, k, grid, tr_Σ², u, v, w)
             + 2 *    Σ₁₂²(i, j, k, grid, u, v, w)
@@ -49,7 +49,7 @@ function ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
 end
 
 "Return the double dot product of strain at `fcf`."
-function ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
+@inline function ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
     return (
                   ▶xz_faf(i, j, k, grid, tr_Σ², u, v, w)
             + 2 * ▶yz_acf(i, j, k, grid, Σ₁₂², u, v, w)
@@ -59,7 +59,7 @@ function ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
 end
 
 "Return the double dot product of strain at `cff`."
-function ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)
+@inline function ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)
     return (
                   ▶yz_aff(i, j, k, grid, tr_Σ², u, v, w)
             + 2 * ▶xz_caf(i, j, k, grid, Σ₁₂², u, v, w)
@@ -80,7 +80,7 @@ end
 Calculate the buoyancy at grid point `i, j, k` associated with `eos`, 
 gravitational acceleration `g`, temperature `T`,  and salinity `S`.
 """
-buoyancy(i, j, k, grid, eos::LinearEquationOfState, g, T, S) = 
+@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, g, T, S) = 
     g * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )
 
 """
@@ -92,7 +92,7 @@ Return the stability function
 
 when ``N^2 > 0``, and 1 otherwise.
 """
-stability(N², Σ², Pr, Cb::T) where T = min(one(T), max(zero(T), sqrt(one(T) - Cb * N² / (Pr*Σ²))))
+@inline stability(N², Σ², Pr, Cb::T) where T = min(one(T), max(zero(T), sqrt(one(T) - Cb * N² / (Pr*Σ²))))
 
 """
     νₑ(ς, Cs, Δ, Σ²)
@@ -101,9 +101,9 @@ Return the eddy viscosity for constant Smagorinsky
 given the stability `ς`, model constant `Cs`, 
 filter with `Δ`, and strain tensor dot product `Σ²`.
 """
-νₑ(ς, Cs, Δ, Σ²) = ς * (Cs*Δ)^2 * sqrt(2Σ²)
+@inline νₑ(ς, Cs, Δ, Σ²) = ς * (Cs*Δ)^2 * sqrt(2Σ²)
 
-function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+@inline function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
     Δ = Δ_ccc(i, j, k, grid, clo)
@@ -113,7 +113,7 @@ function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-function ν_ffc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+@inline function ν_ffc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     N² = ▶xyz_ffc(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
     Δ = Δ_ffc(i, j, k, grid, clo)
@@ -123,7 +123,7 @@ function ν_ffc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-function ν_fcf(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+@inline function ν_fcf(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     N² = ▶x_faa(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
     Δ = Δ_fcf(i, j, k, grid, clo)
@@ -133,7 +133,7 @@ function ν_fcf(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-function ν_cff(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+@inline function ν_cff(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     N² = ▶y_afa(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)
     Δ = Δ_cff(i, j, k, grid, clo)
@@ -143,7 +143,7 @@ function ν_cff(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+@inline function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
     Δ = Δ_ccc(i, j, k, grid, clo)
