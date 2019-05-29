@@ -93,7 +93,8 @@ Return the stability function
 
 when ``N^2 > 0``, and 1 otherwise.
 """
-@inline stability(N²::T, Σ²::T, Pr::T, Cb::T) where T = min(one(T), max(zero(T), sqrt(one(T) - Cb * N² / (Pr*Σ²))))
+@inline stability(N²::T, Σ²::T, Pr::T, Cb::T) where T = one(T) - sqrt(stability_factor(N², Σ², Pr, Cb))
+@inline stability_factor(N²::T, Σ²::T, Pr::T, Cb::T) where T = min(one(T), max(zero(T), Cb * N² / (Pr*Σ²)))
 
 """
     νₑ(ς, Cs, Δ, Σ²)
