@@ -154,13 +154,13 @@ function run_deep_convection_regression_tests()
 end
 
 Closure(::Val{:ConstantSmagorinsky}, ν, κ) =
-    ConstantSmagorinsky(Cs=0.0, ν_background=ν, κ_background=κ)
+    ConstantSmagorinsky(Cs=-0.0, Cb=-0.0, ν_background=ν, κ_background=κ)
 
-Closure(::Val{:ConstantIsotropicDiffusivity, ν, κ) =
+Closure(::Val{:ConstantIsotropicDiffusivity}, ν, κ) =
     ConstantIsotropicDiffusivity(ν=ν, κ=κ)
 
 Closure(::Val{:ConstantAnisotropicDiffusivity}, ν, κ) =
-    ConstantIsotropicDiffusivity(νv=ν, νh=ν, κv=κ, κh=κ)
+    ConstantAnisotropicDiffusivity(νv=ν, νh=ν, κv=κ, κh=κ)
 
 function run_rayleigh_benard_regression_test(arch, closure)
 
@@ -191,7 +191,7 @@ function run_rayleigh_benard_regression_test(arch, closure)
             N = (Nx, Ny, Nz),
             L = (Lx, Ly, Lz),
           eos = LinearEquationOfState(βT=1., βS=0.),
-    constants = PlanetaryConstants(g=1., f=0.)
+    constants = PlanetaryConstants(g=1., f=0.),
       closure = Closure(Val(closure), ν, κ)
     )
 

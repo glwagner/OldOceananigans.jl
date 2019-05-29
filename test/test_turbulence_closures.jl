@@ -93,7 +93,7 @@ end
 function test_constant_isotropic_diffusivity_fluxdiv(TF=Float64; ν=TF(0.3), κ=TF(0.7))
     closure = ConstantIsotropicDiffusivity(TF, κ=κ, ν=ν)
     grid = RegularCartesianGrid(TF, (3, 1, 1), (3, 1, 1))
-    eos = LinearEquationOfState()
+    eos = LinearEquationOfState(TF)
     g = 1.0
 
     u = zeros(TF, 3, 1, 1); v = zeros(TF, 3, 1, 1); w = zeros(TF, 3, 1, 1)
@@ -114,7 +114,7 @@ end
 function test_anisotropic_diffusivity_fluxdiv(TF=Float64; νh=TF(0.3), κh=TF(0.7), νv=TF(0.1), κv=TF(0.5))
     closure = ConstantAnisotropicDiffusivity(TF, κh=κh, νh=νh, κv=κv, νv=νv)
     grid = RegularCartesianGrid(TF, (3, 1, 3), (3, 1, 3))
-    eos = LinearEquationOfState()
+    eos = LinearEquationOfState(TF)
     g = 1.0
 
     u = zeros(TF, 3, 1, 3); v = zeros(TF, 3, 1, 3); w = zeros(TF, 3, 1, 3)
@@ -146,8 +146,8 @@ end
 function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
     closure = ConstantSmagorinsky(TF; Cs=0.0, ν_background=νᵇ, κ_background=κᵇ)
     grid = RegularCartesianGrid(TF, (5, 5, 5), (5, 5, 5))
-    eos = LinearEquationOfState()
-    g = 1.0
+    eos = LinearEquationOfState(TF)
+    g = TF(1)
     u, v, w = rand(TF, size(grid)...), rand(TF, size(grid)...), rand(TF, size(grid)...)
     T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
 
@@ -163,8 +163,8 @@ end
 function test_smag_divflux_finiteness(TF=Float64)
     closure = ConstantSmagorinsky(TF)
     grid = RegularCartesianGrid(TF, (3, 3, 3), (3, 3, 3))
-    eos = LinearEquationOfState()
-    g = 1.0
+    eos = LinearEquationOfState(TF)
+    g = TF(1)
     u, v, w = rand(TF, size(grid)...), rand(TF, size(grid)...), rand(TF, size(grid)...)
     T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
 
@@ -179,8 +179,8 @@ end
 function test_smag_divflux_nonzeroness(TF=Float64)
     closure = ConstantSmagorinsky(TF; Cb=0.0)
     grid = RegularCartesianGrid(TF, (5, 5, 5), (5, 5, 5))
-    eos = LinearEquationOfState()
-    g = 1.0
+    eos = LinearEquationOfState(TF)
+    g = TF(1)
     u, v, w = rand(TF, size(grid)...), rand(TF, size(grid)...), rand(TF, size(grid)...)
     T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
 
