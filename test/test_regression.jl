@@ -162,6 +162,10 @@ Closure(::Val{:ConstantIsotropicDiffusivity}, ν, κ) =
 Closure(::Val{:ConstantAnisotropicDiffusivity}, ν, κ) =
     ConstantAnisotropicDiffusivity(νv=ν, νh=ν, κv=κ, κh=κ)
 
+
+@inline S★(x, z, Lx) = exp(4z) * sin(2π/Lx*x)
+@inline FS(grid, u, v, w, T, S, i, j, k) = 1/10 * (S★(grid.xC[i], grid.zC[k], grid.Lx) - S[i, j, k])
+
 function run_rayleigh_benard_regression_test(arch, closure)
 
     #
@@ -200,8 +204,6 @@ function run_rayleigh_benard_regression_test(arch, closure)
     model.boundary_conditions.T.z.bottom = BoundaryCondition(Value, Δb)
 
     # Force salinity as a passive tracer (βS=0)
-    S★(x, z) = exp(4z) * sin(2π/Lx * x)
-    FS(grid, u, v, w, T, S, i, j, k) = 1/10 * (S★(grid.xC[i], grid.zC[k]) - S[i, j, k])
     model.forcing = Forcing(FS=FS)
 
     ArrayType = typeof(model.velocities.u.data)
