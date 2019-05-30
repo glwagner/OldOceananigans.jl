@@ -32,68 +32,64 @@ zerofunk(args...) = 0
 arraytype(::CPU) = Array
 @hascuda arraytype(::GPU) = CuArray
 
-function set_ic!(model::Model{A}; u=zerofunk, v=zerofunk, w=zerofunk, 
-                    T=zerofunk, S=zerofunk) where A
-
-    ArrayType = arraytype(A())
-
-    model.velocities.u.data .= ArrayType(u.(nodes(model.velocities.u)...)) 
-    model.velocities.v.data .= ArrayType(v.(nodes(model.velocities.v)...))
-    model.velocities.w.data .= ArrayType(w.(nodes(model.velocities.w)...))
-    model.tracers.T.data    .= ArrayType(T.(nodes(model.tracers.T)...))
-    model.tracers.S.data    .= ArrayType(S.(nodes(model.tracers.S)...))
-
-    model.clock.time = 0
-    model.clock.iteration = 0
-
-    for ϕname in (:Gu, :Gv, :Gw, :GT, :GS)
-        ϕ = getproperty(model.G, ϕname)
-        @. ϕ.data .= 0
-        ϕ = getproperty(model.Gp, ϕname)
-        @. ϕ.data .= 0
-    end
-
-    return nothing
-end
 
 function set_noslip_bcs!(model)
     model.boundary_conditions.u.z.top = BoundaryCondition(Value, -0.0)
     model.boundary_conditions.v.z.top = BoundaryCondition(Value, -0.0)
     model.boundary_conditions.u.z.bottom = BoundaryCondition(Value, -0.0)
     model.boundary_conditions.v.z.bottom = BoundaryCondition(Value, -0.0)
+end
+
+function set_ic!(model; u=zerofunk, v=zerofunk, w=zerofunk, T=zerofunk, S=zerofunk)
+    Nx, Ny, Nz = model.grid.Nx, model.grid.Ny, model.grid.Nz
+    data(model.velocities.u) .= u.(xnodes(model.velocities.u), ynodes(model.velocities.u), znodes(model.velocities.u))
+    data(model.velocities.v) .= v.(xnodes(model.velocities.v), ynodes(model.velocities.v), znodes(model.velocities.v))
+    data(model.velocities.w) .= w.(xnodes(model.velocities.w), ynodes(model.velocities.w), znodes(model.velocities.w))
+    data(model.tracers.T)    .= T.(xnodes(model.tracers.T),    ynodes(model.tracers.T),    znodes(model.tracers.T))
+    data(model.tracers.S)    .= S.(xnodes(model.tracers.S),    ynodes(model.tracers.S),    znodes(model.tracers.S))
+
+    for ϕname in (:Gu, :Gv, :Gw, :GT, :GS)
+        ϕ = getproperty(model.G, ϕname)
+        @. data(ϕ.data) = 0
+        ϕ = getproperty(model.Gp, ϕname)
+        @. data(ϕ.data) = 0
+    end
+
     return nothing
 end
 
 plotxzslice(ϕ, slice=1, args...; kwargs...) = pcolormesh(
-    view(x3d(ϕ), :, slice, :), view(z3d(ϕ), :, slice, :), view(ϕ.data, :, slice, :), args...; kwargs...)
+    view(xnodes(ϕ), :, slice, :), view(znodes(ϕ), :, slice, :), view(data(ϕ), :, slice, :), args...; kwargs...)
 
 plotxyslice(ϕ, slice=1, args...; kwargs...) = pcolormesh(
-    view(x3d(ϕ), :, :, slice), view(y3d(ϕ), :, :, slice), view(ϕ.data, :, :, slice), args...; kwargs...)
+    view(xnodes(ϕ), :, :, slice), view(ynodes(ϕ), :, :, slice), view(data(ϕ), :, :, slice), args...; kwargs...)
 
-ΔV(grid) = grid.Δx * grid.Δy * grid.Δz
+function total_kinetic_energy(model)
+    return 0.5 * (
+          sum(data(model.velocities.u).^2)
+        + sum(data(model.velocities.v).^2)
+        + sum(data(model.velocities.w).^2)
+        )
+end
 
-function buoyancy_flux(model::Model{A}) where A
-    Nz = model.grid.Nz
-    βT = model.eos.βT
-     g = model.constants.g
-     w = model.velocities.w
-     T = model.tracers.T
+function total_kinetic_energy(u, v, w)
+    return 0.5 * (sum(data(u).^2) + sum(data(v).^2) + sum(data(w).^2))
+end
 
-    wb = CellField(A(), model.grid)
-
-    @views @. wb.data[:, :, 1:Nz-1] = g * βT * (
-        T.data[:, :, 1:Nz-1] * 0.5 * (w.data[:, :, 1:Nz-1] + w.data[:, :, 2:Nz]))
-
-    @views @. wb.data[:, :, Nz] = g * βT * (
-        T.data[:, :, Nz] * 0.5 * w.data[:, :, Nz]) # w[Nz+1] = 0 due to no-penetration
-
-    return wb
+function total_energy(model, N)
+    b = data(model.tracers.T) .- mean(data(model.tracers.T), dims=(1, 2))
+    return 0.5 * (
+          sum(data(model.velocities.u).^2)
+        + sum(data(model.velocities.v).^2)
+        + sum(data(model.velocities.w).^2)
+        + sum(b.^2) / N^2
+        )
 end
 
 function cfl(Δt, model)
-    umax = maximum(abs.(model.velocities.u.data))
-    vmax = maximum(abs.(model.velocities.v.data))
-    wmax = maximum(abs.(model.velocities.w.data))
+    umax = maximum(abs.(data(model.velocities)))
+    vmax = maximum(abs.(data(model.velocities)))
+    wmax = maximum(abs.(data(model.velocities)))
 
     Δmin = min(model.grid.Δx, model.grid.Δy, model.grid.Δz)
 
@@ -102,13 +98,10 @@ end
 
 total_kinetic_energy(model) = total_kinetic_energy(model.velocities...)
 
-total_kinetic_energy(u, v, w) = ΔV(u.grid) / 2 * (
-    sum(u.data.^2) + sum(v.data.^2) + sum(w.data.^2))
-
 function relative_error(ϕ_num, ϕ_ans)
     Field = fieldkind(ϕ_num)
     ϕ_ans = Field(ϕ_ans.(nodes(ϕ_num)...))
-    return mean((ϕ_num.data .- ϕ_ans.data).^2) / mean(ϕ_ans.data.^2)
+    return mean((data(ϕ_num) .- data(ϕ_ans)).^2) / mean(data(ϕ_ans).^2)
 end
 
 """
