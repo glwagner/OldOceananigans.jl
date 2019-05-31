@@ -25,7 +25,7 @@ end
 """
     Model(; kwargs...)
 
-Construct an `Oceananigans.jl` model.
+Construct a basic `Oceananigans.jl` model.
 """
 function Model(;
     # Model resolution and domain size
@@ -36,13 +36,9 @@ function Model(;
     float_type = Float64,
           grid = RegularCartesianGrid(float_type, N, L),
     # Isotropic transport coefficients (exposed to `Model` constructor for convenience)
-             ν = 1.05e-6, νh=ν, νv=ν, 
-             κ = 1.43e-7, κh=κ, κv=κ, 
-       closure = ConstantAnisotropicDiffusivity(float_type, νh=νh, νv=νv, κh=κh, κv=κv),
-    # Time stepping
-    start_time = 0,
-     iteration = 0,
-         clock = Clock{float_type}(start_time, iteration),
+             ν = 1.05e-6,
+             κ = 1.43e-7,
+       closure = ConstantIsotropicDiffusivity(float_type, ν=ν, κ=κ),
     # Fluid and physical parameters
      constants = Earth(float_type),
            eos = LinearEquationOfState(float_type),
@@ -51,7 +47,8 @@ function Model(;
     boundary_conditions = ModelBoundaryConditions(),
     # Output and diagonstics
     output_writers = OutputWriter[],
-       diagnostics = Diagnostic[]
+       diagnostics = Diagnostic[],
+             clock = Clock{float_type}(0, 0)
 )
 
     arch == GPU() && !HAVE_CUDA && throw(ArgumentError("Cannot create a GPU model. No CUDA-enabled GPU was detected!"))
@@ -82,8 +79,8 @@ add_bcs!(model::Model; kwargs...) = add_bcs(model.boundary_conditions; kwargs...
 function initialize_with_defaults!(eos, tracers, sets...)
 
     # Default tracer initial condition is deteremined by eos.
-    tracers.S.data    .= eos.S₀
-    tracers.T.data    .= eos.T₀
+    tracers.S.data .= eos.S₀
+    tracers.T.data .= eos.T₀
 
     # Set all further fields to 0
     for set in sets
