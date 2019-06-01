@@ -1,8 +1,5 @@
 """Store previous source terms before updating them."""
-function store_previous_source_terms!(grid::RegularCartesianGrid{FT}, Gu::A, Gv::A, Gw::A, GT::A, GS::A, Gpu::A, 
-                                      Gpv::A, Gpw::A, GpT::A, 
-                                      GpS::A) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
-
+function store_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, GpT, GpS)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -71,8 +68,8 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
     @synchronize
 end
 
-function adams_bashforth_update_source_terms!(grid::RegularCartesianGrid{FT}, Gu::A, Gv::A, Gw::A, GT::A, GS::A, Gpu::A, Gpv::A, Gpw::A, GpT::A, GpS::A, 
-                                              χ::FT) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+function adams_bashforth_update_source_terms!(grid::Grid{FT}, Gu, Gv, Gw, GT, GS, 
+                                              Gpu, Gpv, Gpw, GpT, GpS, χ) where FT
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -88,8 +85,7 @@ function adams_bashforth_update_source_terms!(grid::RegularCartesianGrid{FT}, Gu
 end
 
 "Store previous value of the source term and calculate current source term."
-function calculate_poisson_right_hand_side!(::CPU, grid::RegularCartesianGrid{FT}, Δt::TDT, u::A, v::A, w::A, Gu::A, Gv::A, Gw::A, 
-                                            RHS) where {TDT, FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+function calculate_poisson_right_hand_side!(::CPU, grid, Δt, u, v, w, Gu, Gv, Gw, RHS)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -102,9 +98,7 @@ function calculate_poisson_right_hand_side!(::CPU, grid::RegularCartesianGrid{FT
     @synchronize
 end
 
-function calculate_poisson_right_hand_side!(::GPU, grid::RegularCartesianGrid{FT}, Δt::FT, u::A, v::A, w::A, 
-                                            Gu::A, Gv::A, Gw::A, 
-                                            RHS) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+function calculate_poisson_right_hand_side!(::GPU, grid, Δt, u, v, w, Gu, Gv, Gw)
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     @loop for k in (1:Nz; blockIdx().z)
         @loop for j in (1:Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
@@ -123,7 +117,7 @@ function calculate_poisson_right_hand_side!(::GPU, grid::RegularCartesianGrid{FT
     @synchronize
 end
 
-function idct_permute!(grid::RegularCartesianGrid{FT}, ϕ::A, pNHS::A) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+function idct_permute!(grid, ϕ, pNHS)
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     @loop for k in (1:Nz; blockIdx().z)
         @loop for j in (1:Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
@@ -140,9 +134,9 @@ function idct_permute!(grid::RegularCartesianGrid{FT}, ϕ::A, pNHS::A) where {FT
     @synchronize
 end
 
-
-function update_velocities_and_tracers!(grid::RegularCartesianGrid{FT}, u::A, v::A, w::A, T::A, S::A, pNHS::A, Gu::A, Gv::A, Gw::A, GT::A, 
-                                        GS::A, Gpu::A, Gpv::A, Gpw::A, GpT::A, GpS::A, Δt::TDT) where {TDT, FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+function update_velocities_and_tracers!(grid, u, v, w, T, S, pNHS, Gu, Gv, Gw, 
+                                        GT, GS, Gpu, Gpv, Gpw, GpT, GpS, Δt)
+                                        
 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
@@ -159,7 +153,7 @@ function update_velocities_and_tracers!(grid::RegularCartesianGrid{FT}, u::A, v:
 end
 
 "Compute the vertical velocity w from the continuity equation."
-function compute_w_from_continuity!(grid::RegularCartesianGrid{T}, u::A, v::A, w::A) where {T, A<:OffsetArray{T, 3, <:AbstractArray{T, 3}}}
+function compute_w_from_continuity!(grid, u, v, w)
     @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
         @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
             @inbounds w[i, j, 1] = 0
@@ -174,9 +168,7 @@ end
 
 """Store previous source terms before updating them."""
 function calculate_diffusivities!(grid::Grid, closure::ConstantSmagorinsky, 
-                                  turbdiff, 
-                                  eos, grav, u, v, w, T, S) 
-
+                                  turbdiff, eos, grav, u, v, w, T, S) 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)

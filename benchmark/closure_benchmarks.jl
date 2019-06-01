@@ -7,7 +7,7 @@ Ni = 2   # Number of iterations before benchmarking starts.
 Nt = 10  # Number of iterations to use for benchmarking time stepping.
 
 # Axes of parameter variation
-            Ns = [(32, 32, 32)]
+            Ns = [(32, 32, 32), (64, 64, 64)]
       Closures = (ConstantIsotropicDiffusivity, ConstantAnisotropicDiffusivity, ConstantSmagorinsky)
    float_types = [Float32, Float64]     # Float types to benchmark.
          archs = [CPU()]                # Architectures to benchmark on.

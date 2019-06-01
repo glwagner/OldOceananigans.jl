@@ -81,22 +81,17 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
             grid, closure, turbdiffs, eos, constants.g, uvw..., TS...)
 
         @launch device(arch) threads=threads blocks=blocks store_previous_source_terms!(grid, Gⁿ..., G⁻...)
-            
-        @launch device(arch) threads=threads blocks=blocks calculate_interior_source_terms!(grid, constants, eos, closure, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
+        @launch device(arch) threads=threads blocks=blocks calculate_interior_source_terms!(
+            grid, constants, eos, closure, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
                                                                                                    
         calculate_boundary_source_terms!(model)
 
         @launch device(arch) threads=threads blocks=blocks adams_bashforth_update_source_terms!(grid, Gⁿ..., G⁻..., χ)
-            
-
         @launch device(arch) threads=threads blocks=blocks calculate_poisson_right_hand_side!(arch, grid, Δt, uvw..., Guvw..., RHS)
-            
 
         solve_for_pressure!(arch, model)
 
         @launch device(arch) threads=threads blocks=blocks update_velocities_and_tracers!(grid, uvw..., TS..., pr.pNHS.data, Gⁿ..., G⁻..., Δt)
-            
-
         @launch device(arch) threads=threads blocks=(Bx, By) compute_w_from_continuity!(grid, uvw...)
 
         clock.time += Δt
