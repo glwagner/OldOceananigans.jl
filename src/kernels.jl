@@ -98,7 +98,7 @@ function calculate_poisson_right_hand_side!(::CPU, grid, Δt, u, v, w, Gu, Gv, G
     @synchronize
 end
 
-function calculate_poisson_right_hand_side!(::GPU, grid, Δt, u, v, w, Gu, Gv, Gw)
+function calculate_poisson_right_hand_side!(::GPU, grid, Δt, u, v, w, Gu, Gv, Gw, RHS)
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     @loop for k in (1:Nz; blockIdx().z)
         @loop for j in (1:Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
