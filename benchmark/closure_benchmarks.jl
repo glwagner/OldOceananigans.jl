@@ -7,7 +7,7 @@ Ni = 2   # Number of iterations before benchmarking starts.
 Nt = 10  # Number of iterations to use for benchmarking time stepping.
 
 # Axes of parameter variation
-            Ns = [(32, 32, 32), (64, 64, 64)]
+            Ns = [(32, 32, 32)] #, (64, 64, 64)]
       Closures = (ConstantIsotropicDiffusivity, ConstantAnisotropicDiffusivity, ConstantSmagorinsky)
    float_types = [Float32, Float64]     # Float types to benchmark.
          archs = [CPU()]                # Architectures to benchmark on.
@@ -49,7 +49,6 @@ end
 
 print_timer(timer, title="Oceananigans.jl benchmarks")
 
-#=
 bid = "static ocean"  # Benchmark ID. We only have one right now.
 
 println("\n\nCPU Float64 -> Float32 speedup:")
@@ -62,4 +61,16 @@ for N in Ns
         @printf("%s: %.3f\n", benchmark_name(N, bid), t64/t32)
     end
 end
-=#
+
+@hascude begin
+    println("\n\nGPU Float64 -> Float32 speedup:")
+    for N in Ns
+        for Closure in Closures
+            bn32 = benchmark_name(N, bid, GPU(), Float32, Closure)
+            bn64 = benchmark_name(N, bid, GPU(), Float64, Closure)
+            t32  = TimerOutputs.time(timer[bn32])
+            t64  = TimerOutputs.time(timer[bn64])
+            @printf("%s: %.3f\n", benchmark_name(N, bid), t64/t32)
+        end
+    end
+end
