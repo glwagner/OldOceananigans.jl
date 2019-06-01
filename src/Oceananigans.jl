@@ -36,7 +36,6 @@ export
     set!,
 
     # FieldSets (collections of related fields)
-    FieldSet,
     VelocityFields,
     TracerFields,
     PressureFields,
@@ -48,7 +47,6 @@ export
 
     # Equation of state
     LinearEquationOfState,
-    δρ,
 
     # Boundary conditions
     BoundaryConditions,
@@ -69,12 +67,7 @@ export
 
     # Poisson solver
     PoissonSolver,
-    PoissonSolverGPU,
-    init_poisson_solver,
-    solve_poisson_3d_ppn,
-    solve_poisson_3d_ppn!,
     solve_poisson_3d_ppn_planned!,
-    solve_poisson_3d_ppn_gpu!,
     solve_poisson_3d_ppn_gpu_planned!,
 
     # Model helper structs, e.g. configuration, clock, etc.
@@ -97,8 +90,6 @@ export
     FieldSummary,
     NaNChecker,
     VelocityDivergenceChecker,
-    Nusselt_wT,
-    Nusselt_Chi,
 
     # Package utilities
     prettytime,

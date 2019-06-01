@@ -37,35 +37,33 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
                                             + fv(grid, v, fCor, i, j, k)
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.u(grid, u, v, w, T, S, i, j, k)
-                                            #- δx_c2f(grid, pHY′, i, j, k) / (Δx * ρ₀)
-                                           )
+                                        )
 
                 # v-momentum equation
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
                                             - fu(grid, u, fCor, i, j, k)
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.v(grid, u, v, w, T, S, i, j, k)
-                                            #- δy_c2f(grid, pHY′, i, j, k) / (Δy * ρ₀)
-                                           )
+                                        )
 
-                # w-momentum equation: comment about how pressure and buoyancy are handled
+                # w-momentum equation
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
+                                         + buoyancy(i, j, k, grid, eos, grav, T, S)
                                          + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                          + F.w(grid, u, v, w, T, S, i, j, k)
-                                         + buoyancy(i, j, k, grid, eos, grav, T, S)
-                                           )
+                                        )
 
                 # temperature equation
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
                                          + ∇_κ_∇ϕ(i, j, k, grid, T, closure, diffusivities)
                                          + F.T(grid, u, v, w, T, S, i, j, k)
-                                           )
+                                        )
 
                 # salinity equation
                 @inbounds GS[i, j, k] = (-div_flux(grid, u, v, w, S, i, j, k)
                                          + ∇_κ_∇ϕ(i, j, k, grid, S, closure, diffusivities)
                                          + F.S(grid, u, v, w, T, S, i, j, k)
-                                          )
+                                        )
             end
         end
     end
