@@ -29,6 +29,12 @@ ConstantIsotropicDiffusivity(T; kwargs...) =
 @inline ν_fcf(i, j, k, grid, closure::ConstantIsotropicDiffusivity, args...) = closure.ν
 @inline ν_cff(i, j, k, grid, closure::ConstantIsotropicDiffusivity, args...) = closure.ν
 
+@inline ∇_κ_∇ϕ(i, j, k, grid, ϕ, closure::ConstantIsotropicDiffusivity, args...) = (
+      closure.κ / grid.Δx^2 * δx²_c2f2c(grid, ϕ, i, j, k)
+    + closure.κ / grid.Δy^2 * δy²_c2f2c(grid, ϕ, i, j, k)
+    + closure.κ / grid.Δz^2 * δz²_c2f2c(grid, ϕ, i, j, k)
+)
+
 @inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, u, v, w, args...) = (
       closure.ν / grid.Δx^2 * δx²_f2c2f(grid, u, i, j, k) 
     + closure.ν / grid.Δy^2 * δy²_f2e2f(grid, u, i, j, k)
@@ -45,12 +51,6 @@ ConstantIsotropicDiffusivity(T; kwargs...) =
       closure.ν / grid.Δx^2 * δx²_f2e2f(grid, w, i, j, k) 
     + closure.ν / grid.Δy^2 * δy²_f2e2f(grid, w, i, j, k)
     + closure.ν / grid.Δz^2 * δz²_f2c2f(grid, w, i, j, k)
-)
-
-@inline ∇_κ_∇ϕ(i, j, k, grid, ϕ, closure::ConstantIsotropicDiffusivity, args...) = (
-      closure.κ / grid.Δx^2 * δx²_c2f2c(grid, ϕ, i, j, k)
-    + closure.κ / grid.Δy^2 * δy²_c2f2c(grid, ϕ, i, j, k)
-    + closure.κ / grid.Δz^2 * δz²_c2f2c(grid, ϕ, i, j, k)
 )
 
 #

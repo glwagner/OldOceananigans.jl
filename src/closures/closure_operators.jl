@@ -289,12 +289,12 @@ end
 
 @inline function ▶x_caa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     i⁺¹ = incmod1(i, grid.Nx)
-    return T(0.5) * (F[i, j, k] + F[i+1, j, k])
+    return T(0.5) * (F[i, j, k] + F[i⁺¹, j, k])
 end
 
 @inline function ▶y_afa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     j⁻¹ = decmod1(j, grid.Ny)
-    return T(0.5) * (F[i, j, k] + F[i, j-1, k])
+    return T(0.5) * (F[i, j, k] + F[i, j⁻¹, k])
 end
 
 @inline function ▶y_aca(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
@@ -623,7 +623,7 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
       ∂x_caa(i, j, k, grid, κ_∂x_ϕ, ϕ, diffusivities.κ_ccc, closure)
     + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, ϕ, diffusivities.κ_ccc, closure)
     + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.κ_ccc, closure)
-    )
+)
 
 """
     ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
@@ -635,9 +635,9 @@ Return the ``x``-component of the turbulent diffusive flux divergence:
 at the location `fcc`.
 """
 @inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::IsotropicDiffusivity, u, v, w, diffusivities) = (
-    ∂x_2ν_Σ₁₁(i, j, k, grid, closure, args...)
-  + ∂y_2ν_Σ₁₂(i, j, k, grid, closure, args...)
-  + ∂z_2ν_Σ₁₃(i, j, k, grid, closure, args...)
+      ∂x_2ν_Σ₁₁(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂y_2ν_Σ₁₂(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂z_2ν_Σ₁₃(i, j, k, grid, closure, u, v, w, diffusivities)
 )
 
 """
@@ -650,9 +650,9 @@ Return the ``y``-component of the turbulent diffusive flux divergence:
 at the location `ccf`.
 """
 @inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::IsotropicDiffusivity, u, v, w, diffusivities) = (
-    ∂x_2ν_Σ₂₁(i, j, k, grid, closure, args...)
-  + ∂y_2ν_Σ₂₂(i, j, k, grid, closure, args...)
-  + ∂z_2ν_Σ₂₃(i, j, k, grid, closure, args...)
+      ∂x_2ν_Σ₂₁(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂y_2ν_Σ₂₂(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂z_2ν_Σ₂₃(i, j, k, grid, closure, u, v, w, diffusivities)
 )
 
 """
@@ -665,7 +665,7 @@ Return the ``z``-component of the turbulent diffusive flux divergence:
 at the location `ccf`.
 """
 @inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::IsotropicDiffusivity, u, v, w, diffusivities) = (
-    ∂x_2ν_Σ₃₁(i, j, k, grid, closure, args...)
-  + ∂y_2ν_Σ₃₂(i, j, k, grid, closure, args...)
-  + ∂z_2ν_Σ₃₃(i, j, k, grid, closure, args...)
+      ∂x_2ν_Σ₃₁(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂y_2ν_Σ₃₂(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂z_2ν_Σ₃₃(i, j, k, grid, closure, u, v, w, diffusivities)
 )

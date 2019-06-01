@@ -90,5 +90,7 @@ filter with `Δ`, and strain tensor dot product `Σ²`.
     return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-@inline κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
-    (ν_ccc(i, j, k, grid, clo, eos, g, u, v, w, T, S) - clo.ν_background) / clo.Pr + clo.κ_background
+@inline function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+    νₑ = ν_ccc(i, j, k, grid, clo, eos, g, u, v, w, T, S)
+    return (νₑ - clo.ν_background) / clo.Pr + clo.κ_background
+end
