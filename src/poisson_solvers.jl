@@ -24,7 +24,10 @@ let pf2s = Dict(FFTW.ESTIMATE   => "FFTW.ESTIMATE",
     plannerflag2string(k::Integer) = pf2s[Int(k)]
 end
 
-function PoissonSolverCPU(grid::Grid{T}, planner_flag=FFTW.PATIENT) where T
+function PoissonSolverCPU(grid::Grid{T}, nthreads=Sys.CPU_THREADS, planner_flag=FFTW.PATIENT) where T
+
+    FFTW.set_num_threads(nthreads) 
+
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     Lx, Ly, Lz = grid.Lx, grid.Ly, grid.Lz
 
