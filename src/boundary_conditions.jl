@@ -46,9 +46,9 @@ Construct `CoordinateBoundaryCondition` to be applied along coordinate `c`, wher
 `left` and `right` that store boundary conditions on the 'left' (negative side)
 and 'right' (positive side) of a given coordinate.
 """
-mutable struct CoordinateBoundaryConditions
-     left :: BoundaryCondition
-    right :: BoundaryCondition
+mutable struct CoordinateBoundaryConditions{L, R}
+     left :: L
+    right :: R
 end
 
 CoordinateBoundaryConditions() = CoordinateBoundaryConditions(DefaultBC(), DefaultBC())
@@ -80,10 +80,10 @@ Construct `FieldBoundaryConditions` for a field.
 A FieldBoundaryCondition has `CoordinateBoundaryConditions` in
 `x`, `y`, and `z`.
 """
-struct FieldBoundaryConditions <: FieldVector{dims, CoordinateBoundaryConditions}
-    x :: CoordinateBoundaryConditions
-    y :: CoordinateBoundaryConditions
-    z :: CoordinateBoundaryConditions
+struct FieldBoundaryConditions{X, Y, Z} <: FieldVector{dims, CoordinateBoundaryConditions}
+    x :: X
+    y :: Y
+    z :: Z
 end
 
 """
@@ -92,12 +92,12 @@ end
 Construct a boundary condition type full of default
 `FieldBoundaryConditions` for u, v, w, T, S.
 """
-struct ModelBoundaryConditions <: FieldVector{nsolution, FieldBoundaryConditions}
-    u :: FieldBoundaryConditions
-    v :: FieldBoundaryConditions
-    w :: FieldBoundaryConditions
-    T :: FieldBoundaryConditions
-    S :: FieldBoundaryConditions
+struct ModelBoundaryConditions{UBC, VBC, WBC, TBC, SBC} <: FieldVector{nsolution, FieldBoundaryConditions}
+    u :: UBC
+    v :: VBC
+    w :: WBC
+    T :: TBC
+    S :: SBC
 end
 
 FieldBoundaryConditions() = FieldBoundaryConditions(CoordinateBoundaryConditions(),

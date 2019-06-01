@@ -2,23 +2,23 @@
 # Differential operators for regular grids
 #
 
-@inline function ∂x_caa(i, j, k, grid, u::AbstractArray) 
-    i⁺ = incmod1(i, grid.Nx)    
+@inline function ∂x_caa(i, j, k, grid, u::AbstractArray)
+    i⁺ = incmod1(i, grid.Nx)
     return @inbounds (u[i⁺, j, k] - u[i, j, k]) / grid.Δx
 end
 
-@inline function ∂x_faa(i, j, k, grid, ϕ::AbstractArray) 
-    i⁻ = decmod1(i, grid.Nx)    
+@inline function ∂x_faa(i, j, k, grid, ϕ::AbstractArray)
+    i⁻ = decmod1(i, grid.Nx)
     return @inbounds (ϕ[i, j, k] - ϕ[i⁻, j, k]) / grid.Δx
 end
 
-@inline function ∂y_aca(i, j, k, grid, v::AbstractArray) 
-    j⁺ = incmod1(j, grid.Ny)    
+@inline function ∂y_aca(i, j, k, grid, v::AbstractArray)
+    j⁺ = incmod1(j, grid.Ny)
     return @inbounds (v[i, j⁺, k] - v[i, j, k]) / grid.Δy
 end
 
-@inline function ∂y_afa(i, j, k, grid, ϕ::AbstractArray) 
-    j⁻ = decmod1(j, grid.Ny)    
+@inline function ∂y_afa(i, j, k, grid, ϕ::AbstractArray)
+    j⁻ = decmod1(j, grid.Ny)
     return @inbounds (ϕ[i, j, k] - ϕ[i, j⁻, k]) / grid.Δy
 end
 
@@ -79,70 +79,55 @@ end
 
 """
     ∂x_faa(i, j, k, grid, F, args...)
-
 Differentiate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 located at `caa` in `x`, across `faa`.
 """
-@inline function ∂x_faa(i, j, k, grid, F::Function, args...)
+@inline function ∂x_faa(i, j, k, grid, F::TF, args...) where TF<:Function
     i⁻ = decmod1(i, grid.Nx)
     return (F(i, j, k, grid, args...) - F(i⁻, j, k, grid, args...)) / grid.Δx
 end
 
 """
     ∂x_caa(i, j, k, grid, F, args...)
-
 Differentiate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 located at `faa` in `x`, across `caa`.
 """
-@inline function ∂x_caa(i, j, k, grid, F::Function, args...)
+@inline function ∂x_caa(i, j, k, grid, F::TF, args...) where TF<:Function
     i⁺ = incmod1(i, grid.Nx)
     return (F(i⁺, j, k, grid, args...) - F(i, j, k, grid, args...)) / grid.Δx
 end
 
 """
     ∂y_afa(i, j, k, grid, F, args...)
-
 Differentiate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 located at `aca` in `y`, across `afa`.
 """
-@inline function ∂y_afa(i, j, k, grid, F::Function, args...)
+@inline function ∂y_afa(i, j, k, grid, F::TF, args...) where TF<:Function
     j⁻ = decmod1(j, grid.Ny)
     return (F(i, j, k, grid, args...) - F(i, j⁻, k, grid, args...)) / grid.Δy
 end
 
 """
     ∂y_aca(i, j, k, grid, F, args...)
-
 Differentiate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 located at `afa` in `y`, across `aca`.
 """
-@inline function ∂y_aca(i, j, k, grid, F::Function, args...)
+@inline function ∂y_aca(i, j, k, grid, F::TF, args...) where TF<:Function
     j⁺ = incmod1(j, grid.Ny)
     return (F(i, j⁺, k, grid, args...) - F(i, j, k, grid, args...)) / grid.Δy
 end
 
 """
     ∂z_aaf(i, j, k, grid, F, args...)
-
 Differentiate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 located at `aac` in `z`, across `aaf`.
 """
-@inline function ∂z_aaf(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ∂z_aaf(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     if k == 1
         return -zero(T)
     else
@@ -152,14 +137,11 @@ end
 
 """
     ∂z_aac(i, j, k, grid, F, args...)
-
 Differentiate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 located at `aaf` in `z`, across `aac`.
 """
-@inline function ∂z_aac(i, j, k, grid, F::Function, args...)
+@inline function ∂z_aac(i, j, k, grid, F::TF, args...) where TF<:Function
     if k == grid.Nz
         return F(i, j, k, grid, args...) / grid.Δz
     else
@@ -186,70 +168,55 @@ end
 
 """
     ▶x_faa(i, j, k, grid, F, args...)
-
 Interpolate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 from `caa` to `faa`."
 """
-@inline function ▶x_faa(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ▶x_faa(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     i⁻¹ = decmod1(i, grid.Nx)
     return T(0.5) * (F(i, j, k, grid, args...) + F(i⁻¹, j, k, grid, args...))
 end
 
 """
     ▶x_caa(i, j, k, grid, F, args...)
-
 Interpolate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 from `faa` to `caa`."
 """
-@inline function ▶x_caa(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ▶x_caa(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     i⁺¹ = incmod1(i, grid.Nx)
     return T(0.5) * (F(i⁺¹, j, k, grid, args...) + F(i, j, k, grid, args...))
 end
 
 """
     ▶y_afa(i, j, k, grid, F, args...)
-
 Interpolate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 from `aca` to `afa`.
 """
-@inline function ▶y_afa(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ▶y_afa(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     j⁻¹ = decmod1(j, grid.Ny)
     return T(0.5) * (F(i, j, k, grid, args...) + F(i, j⁻¹, k, grid, args...))
 end
 
 """
     ▶y_aca(i, j, k, grid, F, args...)
-
 Interpolate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 from `afa` to `aca`."
 """
-@inline function ▶y_aca(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ▶y_aca(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     j⁺¹ = incmod1(j, grid.Ny)
     return T(0.5) * (F(i, j⁺¹, k, grid, args...) + F(i, j, k, grid, args...))
 end
 
 """
     ▶z_aaf(i, j, k, grid, F, args...)
-
 Interpolate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 from `aac` to `aaf`.
 """
-@inline function ▶z_aaf(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ▶z_aaf(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     if k == 1
         return T(0.5) * F(i, j, k, grid, args...)
     else
@@ -259,14 +226,11 @@ end
 
 """
     ▶z_aac(i, j, k, grid::Grid{T}, F, args...) where T
-
 Interpolate the function or callable object
-
     `F(i, j, k, grid, args...)`
-
 from `aaf` to `aac`.
 """
-@inline function ▶z_aac(i, j, k, grid::Grid{T}, F::Function, args...) where T
+@inline function ▶z_aac(i, j, k, grid::Grid{T}, F::TF, args...) where {T, TF<:Function}
     if k == grid.Nz
         return T(0.5) * F(i, j, k, grid, args...)
     else
@@ -281,6 +245,42 @@ end
 @inline ▶y_aca(i, j, k, grid, F::Number, args...) = F
 @inline ▶z_aaf(i, j, k, grid, F::Number, args...) = F
 @inline ▶z_aac(i, j, k, grid, F::Number, args...) = F
+
+@inline function ▶x_faa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
+    i⁻¹ = decmod1(i, grid.Nx)
+    return T(0.5) * (F[i, j, k] + F[i⁻¹, j, k])
+end
+
+@inline function ▶x_caa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
+    i⁺¹ = incmod1(i, grid.Nx)
+    return T(0.5) * (F[i, j, k] + F[i+1, j, k])
+end
+
+@inline function ▶y_afa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
+    j⁻¹ = decmod1(j, grid.Ny)
+    return T(0.5) * (F[i, j, k] + F[i, j-1, k])
+end
+
+@inline function ▶y_aca(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
+    j⁺¹ = incmod1(j, grid.Ny)
+    return T(0.5) * (F[i, j, k] + F[i, j⁺¹, k])
+end
+
+@inline function ▶z_aaf(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
+    if k == 1
+        return T(0.5) * F[i, j, k]
+    else
+        return T(0.5) * (F[i, j, k] + F[i, j, k-1])
+    end
+end
+
+@inline function ▶z_aac(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
+    if k == grid.Nz
+        return T(0.5) * F[i, j, k]
+    else
+        return T(0.5) * (F[i, j, k] + F[i, j, k+1])
+    end
+end
 
 #
 # Double interpolation: 12 operators
@@ -445,24 +445,42 @@ at index `i, j, k`.
 @inline ν_Σᵢⱼ(i, j, k, grid, ν::TN, Σᵢⱼ::TS, closure, eos, grav, u, v, w, T, S) where {TN, TS} =
     ν(i, j, k, grid, closure, eos, grav, u, v, w, T, S) * Σᵢⱼ(i, j, k, grid, u, v, w)
 
+@inline ν_Σᵢⱼ(i, j, k, grid, ν::TN, Σᵢⱼ::TS, closure, eos, grav, u, v, w, T, S) where {TN<:AbstractArray, TS} =
+    ν[i, j, k] * Σᵢⱼ(i, j, k, grid, u, v, w)
+
 #
 # Stress divergences
 #
 
 # At fcc
-@inline ∂x_2ν_Σ₁₁(i, j, k, grid, args...) = 2 * ∂x_faa(i, j, k, grid, ν_Σᵢⱼ, ν_ccc, Σ₁₁, args...)
-@inline ∂y_2ν_Σ₁₂(i, j, k, grid, args...) = 2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ, ν_ffc, Σ₁₂, args...)
-@inline ∂z_2ν_Σ₁₃(i, j, k, grid, args...) = 2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ, ν_fcf, Σ₁₃, args...)
+@inline ∂x_2ν_Σ₁₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂x_faa(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_ccc, Σ₁₁, closure, eos, grav, u, v, w, T, S)
+
+@inline ∂y_2ν_Σ₁₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_ffc, Σ₁₂, closure, eos, grav, u, v, w, T, S)
+
+@inline ∂z_2ν_Σ₁₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_fcf, Σ₁₃, closure, eos, grav, u, v, w, T, S)
 
 # At cfc
-@inline ∂x_2ν_Σ₂₁(i, j, k, grid, args...) = 2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ, ν_ffc, Σ₂₁, args...)
-@inline ∂y_2ν_Σ₂₂(i, j, k, grid, args...) = 2 * ∂y_afa(i, j, k, grid, ν_Σᵢⱼ, ν_ccc, Σ₂₂, args...)
-@inline ∂z_2ν_Σ₂₃(i, j, k, grid, args...) = 2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ, ν_cff, Σ₂₃, args...)
+@inline ∂x_2ν_Σ₂₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_ffc, Σ₂₁, closure, eos, grav, u, v, w, T, S)
+
+@inline ∂y_2ν_Σ₂₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂y_afa(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_ccc, Σ₂₂, closure, eos, grav, u, v, w, T, S)
+
+@inline ∂z_2ν_Σ₂₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_cff, Σ₂₃, closure, eos, grav, u, v, w, T, S)
 
 # At ccf
-@inline ∂x_2ν_Σ₃₁(i, j, k, grid, args...) = 2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ, ν_fcf, Σ₃₁, args...)
-@inline ∂y_2ν_Σ₃₂(i, j, k, grid, args...) = 2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ, ν_cff, Σ₃₂, args...)
-@inline ∂z_2ν_Σ₃₃(i, j, k, grid, args...) = 2 * ∂z_aaf(i, j, k, grid, ν_Σᵢⱼ, ν_ccc, Σ₃₃, args...)
+@inline ∂x_2ν_Σ₃₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_fcf, Σ₃₁, closure, eos, grav, u, v, w, T, S)
+
+@inline ∂y_2ν_Σ₃₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_cff, Σ₃₂, closure, eos, grav, u, v, w, T, S)
+
+@inline ∂z_2ν_Σ₃₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S, diffusivities) = 
+    2 * ∂z_aaf(i, j, k, grid, ν_Σᵢⱼ, diffusivities.ν_ccc, Σ₃₃, closure, eos, grav, u, v, w, T, S)
 
 """
     ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, eos, g, u, v, w, T, S)
@@ -554,8 +572,17 @@ end
 Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
 `closure`, where `ϕ` is an array of scalar data located at cell centers.
 """
+
+@inline ∇_κ_∇ϕ(i, j, k, grid, ϕ, closure::IsotropicDiffusivity, eos, g, u, v, w, T, S, diffusivities) = (
+        ∂x_caa(i, j, k, grid, κ_∂x_ϕ, ϕ, diffusivities.κ_ccc, closure, eos, g, u, v, w, T, S)
+      + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, ϕ, diffusivities.κ_ccc, closure, eos, g, u, v, w, T, S)
+      + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.κ_ccc, closure, eos, g, u, v, w, T, S)
+    )
+
+#=
 @inline ∇_κ_∇ϕ(i, j, k, grid, ϕ, closure::IsotropicDiffusivity, args...) = (
       ∂x_caa(i, j, k, grid, κ_∂x_ϕ, ϕ, κ_ccc, closure, args...)
     + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, ϕ, κ_ccc, closure, args...)
     + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, κ_ccc, closure, args...)
     )
+    =#

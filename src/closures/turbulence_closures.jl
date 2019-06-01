@@ -10,6 +10,8 @@ export
     ConstantAnisotropicDiffusivity,
     ConstantSmagorinsky,
 
+    TurbulentDiffusivities,
+
     ∇_κ_∇ϕ,
     ∂ⱼ_2ν_Σ₁ⱼ,
     ∂ⱼ_2ν_Σ₂ⱼ,
@@ -17,6 +19,12 @@ export
 
     ν₁₁, ν₂₂, ν₃₃,
     κ₁₁, κ₂₂, κ₃₃,
+
+    ν_ccc,
+    ν_ffc,
+    ν_fcf,
+    ν_cff,
+    κ_ccc,
 
     ∂x_caa, ∂x_faa, ∂x²_caa, ∂x²_faa,
     ∂y_aca, ∂y_afa, ∂y²_aca, ∂y²_afa,
@@ -86,5 +94,18 @@ include("constant_smagorinsky.jl")
 κ₁₁ = (ccc=κ₁₁_ccc, )
 κ₂₂ = (ccc=κ₂₂_ccc, )
 κ₃₃ = (ccc=κ₃₃_ccc, )
+
+TurbulentDiffusivities(arch::Architecture, grid::Grid, args...) = 
+    (ν_ccc=nothing, ν_ffc=nothing, ν_fcf=nothing, ν_cff=nothing, κ_ccc=nothing)
+     
+function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::ConstantSmagorinsky)
+    ν_ccc = zeros(arch, grid)
+    ν_ffc = zeros(arch, grid)
+    ν_fcf = zeros(arch, grid)
+    ν_cff = zeros(arch, grid)
+    κ_ccc = zeros(arch, grid)
+    return (ν_ccc=ν_ccc, ν_ffc=ν_ffc, ν_fcf=ν_fcf, ν_cff=ν_cff, κ_ccc=κ_ccc)
+end
+
 
 end # module

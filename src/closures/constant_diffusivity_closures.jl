@@ -29,19 +29,19 @@ ConstantIsotropicDiffusivity(T; kwargs...) =
 @inline ν_fcf(i, j, k, grid, closure::ConstantIsotropicDiffusivity, args...) = closure.ν
 @inline ν_cff(i, j, k, grid, closure::ConstantIsotropicDiffusivity, args...) = closure.ν
 
-@inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, eos, g, u, v, w, T, S) = (
+@inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, eos, g, u, v, w, T, S, args...) = (
       closure.ν/grid.Δx^2 * δx²_f2c2f(grid, u, i, j, k) 
     + closure.ν/grid.Δy^2 * δy²_f2e2f(grid, u, i, j, k)
     + closure.ν/grid.Δz^2 * δz²_f2e2f(grid, u, i, j, k)
 )
 
-@inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, eos, g, u, v, w, T, S) = (
+@inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, eos, g, u, v, w, T, S, args...) = (
       closure.ν/grid.Δx^2 * δx²_f2e2f(grid, v, i, j, k) 
     + closure.ν/grid.Δy^2 * δy²_f2c2f(grid, v, i, j, k)
     + closure.ν/grid.Δz^2 * δz²_f2e2f(grid, v, i, j, k)
 )
 
-@inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, eos, g, u, v, w, T, S) = (
+@inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, eos, g, u, v, w, T, S, args...) = (
       closure.ν/grid.Δx^2 * δx²_f2e2f(grid, w, i, j, k) 
     + closure.ν/grid.Δy^2 * δy²_f2e2f(grid, w, i, j, k)
     + closure.ν/grid.Δz^2 * δz²_f2c2f(grid, w, i, j, k)
@@ -95,19 +95,19 @@ end
 ConstantAnisotropicDiffusivity(T; kwargs...) =
     typed_keyword_constructor(T, ConstantAnisotropicDiffusivity; kwargs...)
 
-@inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, eos, g, u, v, w, T, S) = (
+@inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, eos, g, u, v, w, T, S, args...) = (
       closure.νh * ∂x²_faa(i, j, k, grid, u)
     + closure.νh * ∂y²_aca(i, j, k, grid, u)
     + closure.νv * ∂z²_aac(i, j, k, grid, u)
     )
 
-@inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, eos, g, u, v, w, T, S) = (
+@inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, eos, g, u, v, w, T, S, args...) = (
       closure.νh * ∂x²_caa(i, j, k, grid, v)
     + closure.νh * ∂y²_afa(i, j, k, grid, v)
     + closure.νv * ∂z²_aac(i, j, k, grid, v)
     )
 
-@inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, eos, g, u, v, w, T, S) = (
+@inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, eos, g, u, v, w, T, S, args...) = (
       closure.νh * ∂x²_caa(i, j, k, grid, w)
     + closure.νh * ∂y²_aca(i, j, k, grid, w)
     + closure.νv * ∂z²_aaf(i, j, k, grid, w)

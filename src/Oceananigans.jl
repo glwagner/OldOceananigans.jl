@@ -173,18 +173,15 @@ include("clock.jl")
 include("planetary_constants.jl")
 include("grids.jl")
 include("fields.jl")
-include("fieldsets.jl")
 include("forcing.jl")
+include("fieldsets.jl")
 include("equation_of_state.jl")
-
 include("operators/operators.jl")
 include("closures/turbulence_closures.jl")
-
 include("boundary_conditions.jl")
 include("poisson_solvers.jl")
 include("models.jl")
 include("time_steppers.jl")
-
 include("output_writers.jl")
 include("diagnostics.jl")
 
