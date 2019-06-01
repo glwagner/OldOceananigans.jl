@@ -18,7 +18,8 @@ function store_previous_source_terms!(grid::RegularCartesianGrid{FT}, Gu::A, Gv:
 end
 
 "Update the hydrostatic pressure perturbation pHY′ and buoyancy δρ."
-function update_buoyancy!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, eos::LinearEquationOfState{FT}, 
+function update_buoyancy!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, 
+                          eos::LinearEquationOfState{FT}, 
                           T::A, pHY′::A) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
     gΔz = constants.g * grid.Δz
@@ -27,7 +28,8 @@ function update_buoyancy!(grid::RegularCartesianGrid{FT}, constants::PlanetaryCo
         @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
             @inbounds pHY′[i, j, 1] = 0.5 * gΔz * δρ(eos, T, i, j, 1)
             @unroll for k in 2:grid.Nz
-                @inbounds pHY′[i, j, k] = pHY′[i, j, k-1] + gΔz * 0.5 * (δρ(eos, T, i, j, k-1) + δρ(eos, T, i, j, k))
+                @inbounds pHY′[i, j, k] = (pHY′[i, j, k-1] 
+                                           + gΔz * 0.5 * (δρ(eos, T, i, j, k-1) + δρ(eos, T, i, j, k)))
             end
         end
     end
@@ -36,9 +38,10 @@ function update_buoyancy!(grid::RegularCartesianGrid{FT}, constants::PlanetaryCo
 end
 
 "Store previous value of the source term and calculate current source term."
-function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, eos::LinearEquationOfState{FT}, 
-                                          closure::TurbulenceClosure{FT}, u::A, v::A, w::A, T::A, S::A, pHY′::A, Gu::A, Gv::A, Gw::A, GT::A, 
-                                          GS::A, eddy_diff) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, 
+                                          eos::LinearEquationOfState{FT}, closure::TurbulenceClosure{FT}, 
+                                          u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A, 
+                                          GS::A, diffusivities) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     Δx, Δy, Δz = grid.Δx, grid.Δy, grid.Δz
@@ -53,35 +56,36 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
                 # u-momentum equation
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
                                             + fv(grid, v, fCor, i, j, k)
-                                            - δx_c2f(grid, pHY′, i, j, k) / (Δx * ρ₀)
-                                            + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, eos, grav, u, v, w, T, S, eddy_diff)
+                                            + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             #+ F.u(grid, u, v, w, T, S, i, j, k)
+                                            #- δx_c2f(grid, pHY′, i, j, k) / (Δx * ρ₀)
                                            )
 
                 # v-momentum equation
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
                                             - fu(grid, u, fCor, i, j, k)
-                                            - δy_c2f(grid, pHY′, i, j, k) / (Δy * ρ₀)
-                                            + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, eos, grav, u, v, w, T, S, eddy_diff)
-                                           # + F.v(grid, u, v, w, T, S, i, j, k)
+                                            + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+                                            #+ F.v(grid, u, v, w, T, S, i, j, k)
+                                            #- δy_c2f(grid, pHY′, i, j, k) / (Δy * ρ₀)
                                            )
 
                 # w-momentum equation: comment about how pressure and buoyancy are handled
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
-                                         + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, eos, grav, u, v, w, T, S, eddy_diff)
-                                          #  + F.w(grid, u, v, w, T, S, i, j, k)
+                                         + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+                                         #+ F.w(grid, u, v, w, T, S, i, j, k)
+                                         + buoyancy(i, j, k, grid, eos, grav, T, S)
                                            )
 
                 # temperature equation
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
-                                         + ∇_κ_∇ϕ(i, j, k, grid, T, closure, eos, grav, u, v, w, T, S, eddy_diff)
-                                            #+ F.T(grid, u, v, w, T, S, i, j, k)
+                                         + ∇_κ_∇ϕ(i, j, k, grid, T, closure, diffusivities)
+                                         #+ F.T(grid, u, v, w, T, S, i, j, k)
                                            )
 
                 # salinity equation
                 @inbounds GS[i, j, k] = (-div_flux(grid, u, v, w, S, i, j, k)
-                                         + ∇_κ_∇ϕ(i, j, k, grid, S, closure, eos, grav, u, v, w, T, S, eddy_diff)
-                                           # + F.S(grid, u, v, w, T, S, i, j, k)
+                                         + ∇_κ_∇ϕ(i, j, k, grid, S, closure, diffusivities)
+                                         # + F.S(grid, u, v, w, T, S, i, j, k)
                                           )
             end
         end
@@ -191,104 +195,21 @@ function compute_w_from_continuity!(grid::RegularCartesianGrid{T}, u::A, v::A, w
     @synchronize
 end
 
-#=
-#
-# Boundary condition physics specification
-#
+"""Store previous source terms before updating them."""
+function calculate_diffusivities!(grid::Grid, closure::ConstantSmagorinsky, 
+                                  turbdiff, 
+                                  eos, grav, u, v, w, T, S) 
 
-"Apply boundary conditions by modifying the source term G."
-function calculate_boundary_source_terms!(model::Model{A}) where A <: Architecture
-    arch = A()
-
-    Nx, Ny, Nz = model.grid.Nx, model.grid.Ny, model.grid.Nz
-    Lx, Ly, Lz = model.grid.Lx, model.grid.Ly, model.grid.Lz
-    Δx, Δy, Δz = model.grid.Δx, model.grid.Δy, model.grid.Δz
-
-    grid = model.grid
-    clock = model.clock
-    eos =  model.eos
-    closure = model.closure
-    bcs = model.boundary_conditions
-    U = model.velocities
-    tr = model.tracers
-    G = model.G
-
-    grav = model.constants.g
-    t, iteration = clock.time, clock.iteration
-    u, v, w, T, S = U.u.data, U.v.data, U.w.data, tr.T.data, tr.S.data
-    Gu, Gv, Gw, GT, GS = G.Gu.data, G.Gv.data, G.Gw.data, G.GT.data, G.GS.data
-
-    Bx, By, Bz = floor(Int, Nx/Tx), floor(Int, Ny/Ty), Nz  # Blocks in grid
-
-    coord = :z #for coord in (:x, :y, :z) when we are ready to support more coordinates.
-
-    u_x_bcs = getproperty(bcs.u, coord)
-    v_x_bcs = getproperty(bcs.v, coord)
-    w_x_bcs = getproperty(bcs.w, coord)
-    T_x_bcs = getproperty(bcs.T, coord)
-    S_x_bcs = getproperty(bcs.S, coord)
-
-    # Apply boundary conditions in the vertical direction.
-
-    # *Note*: for vertical boundaries in xz or yz, the transport coefficients should be evaluated at
-    # different locations than the ones speciifc below, which are specific to boundaries in the xy-plane.
-
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, u_x_bcs.left, u_x_bcs.right, grid, u, Gu, ν₃₃.ffc,
-        closure, eos, grav, t, iteration, u, v, w, T, S)
-
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, v_x_bcs.left, v_x_bcs.right, grid, v, Gv, ν₃₃.fcf,
-        closure, eos, grav, t, iteration, u, v, w, T, S)
-
-    #apply_bcs!(arch, Val(coord), Bx, By, Bz, w_x_bcs.left, w_x_bcs.right, grid, w, Gw, ν₃₃.cff,
-    #    closure, eos, grav, t, iteration, u, v, w, T, S)
-
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, T_x_bcs.left, T_x_bcs.right, grid, T, GT, κ₃₃.ccc,
-        closure, eos, grav, t, iteration, u, v, w, T, S)
-
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, S_x_bcs.left, S_x_bcs.right, grid, S, GS, κ₃₃.ccc,
-        closure, eos, grav, t, iteration, u, v, w, T, S)
-
-    return nothing
-end
-
-# Do nothing if both boundary conditions are default.
-apply_bcs!(::CPU, ::Val{:x}, Bx, By, Bz,
-    left_bc::BC{<:Default, T}, right_bc::BC{<:Default, T}, args...) where {T} = nothing
-apply_bcs!(::CPU, ::Val{:y}, Bx, By, Bz,
-    left_bc::BC{<:Default, T}, right_bc::BC{<:Default, T}, args...) where {T} = nothing
-apply_bcs!(::CPU, ::Val{:z}, Bx, By, Bz,
-    left_bc::BC{<:Default, T}, right_bc::BC{<:Default, T}, args...) where {T} = nothing
-
-apply_bcs!(::GPU, ::Val{:x}, Bx, By, Bz,
-    left_bc::BC{<:Default, T}, right_bc::BC{<:Default, T}, args...) where {T} = nothing
-apply_bcs!(::GPU, ::Val{:y}, Bx, By, Bz,
-    left_bc::BC{<:Default, T}, right_bc::BC{<:Default, T}, args...) where {T} = nothing
-apply_bcs!(::GPU, ::Val{:z}, Bx, By, Bz,
-    left_bc::BC{<:Default, T}, right_bc::BC{<:Default, T}, args...) where {T} = nothing
-
-# First, dispatch on coordinate.
-apply_bcs!(arch, ::Val{:x}, Bx, By, Bz, args...) =
-    @launch device(arch) threads=(Tx, Ty) blocks=(By, Bz) apply_x_bcs!(args...)
-apply_bcs!(arch, ::Val{:y}, Bx, By, Bz, args...) =
-    @launch device(arch) threads=(Tx, Ty) blocks=(Bx, Bz) apply_y_bcs!(args...)
-apply_bcs!(arch, ::Val{:z}, Bx, By, Bz, args...) =
-    @launch device(arch) threads=(Tx, Ty) blocks=(Bx, By) apply_z_bcs!(args...)
-
-"Apply a top and/or bottom boundary condition to variable ϕ. Note that this kernel
-MUST be launched with blocks=(Bx, By). If launched with blocks=(Bx, By, Bz), the
-boundary condition will be applied Bz times!"
-function apply_z_bcs!(top_bc, bottom_bc, grid, ϕ, Gϕ, κ, closure, eos, g, t, iteration, u, v, w, T, S)
-    @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
-        @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-
-               κ_top = κ(i, j, 1,       grid, closure, eos, g, u, v, w, T, S)
-            κ_bottom = κ(i, j, grid.Nz, grid, closure, eos, g, u, v, w, T, S)
-
-               apply_z_top_bc!(top_bc,    i, j, grid, ϕ, Gϕ, κ_top,    t, iteration, u, v, w, T, S)
-            apply_z_bottom_bc!(bottom_bc, i, j, grid, ϕ, Gϕ, κ_bottom, t, iteration, u, v, w, T, S)
-
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                @inbounds turbdiff.ν_ccc[i, j, k] = (ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S) 
+                                                     + closure.ν_background)
+                @inbounds turbdiff.κ_ccc[i, j, k] = turbdiff.ν_ccc[i, j, k] / closure.Pr + closure.κ_background
+            end
         end
     end
     @synchronize
 end
-=#
+
+

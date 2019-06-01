@@ -29,6 +29,12 @@ ConstantSmagorinsky(T; kwargs...) =
 #   Σ₁₃ : fcf
 #   Σ₂₃ : cff
 
+function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::ConstantSmagorinsky)
+    ν_ccc = zeros(arch, grid)
+    κ_ccc = zeros(arch, grid)
+    return (ν_ccc=ν_ccc, κ_ccc=κ_ccc)
+end
+
 "Return the double dot product of strain at `ccc`."
 @inline function ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
     return (
@@ -36,36 +42,6 @@ ConstantSmagorinsky(T; kwargs...) =
             + 2 * ▶xy_cca(i, j, k, grid, Σ₁₂², u, v, w)
             + 2 * ▶xz_cac(i, j, k, grid, Σ₁₃², u, v, w)
             + 2 * ▶yz_acc(i, j, k, grid, Σ₂₃², u, v, w)
-            )
-end
-
-"Return the double dot product of strain at `ffc`."
-@inline function ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
-    return (
-                  ▶xy_ffa(i, j, k, grid, tr_Σ², u, v, w)
-            + 2 *    Σ₁₂²(i, j, k, grid, u, v, w)
-            + 2 * ▶yz_afc(i, j, k, grid, Σ₁₃², u, v, w)
-            + 2 * ▶xz_fac(i, j, k, grid, Σ₂₃², u, v, w)
-            )
-end
-
-"Return the double dot product of strain at `fcf`."
-@inline function ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
-    return (
-                  ▶xz_faf(i, j, k, grid, tr_Σ², u, v, w)
-            + 2 * ▶yz_acf(i, j, k, grid, Σ₁₂², u, v, w)
-            + 2 *    Σ₁₃²(i, j, k, grid, u, v, w)
-            + 2 * ▶xy_fca(i, j, k, grid, Σ₂₃², u, v, w)
-            )
-end
-
-"Return the double dot product of strain at `cff`."
-@inline function ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)
-    return (
-                  ▶yz_aff(i, j, k, grid, tr_Σ², u, v, w)
-            + 2 * ▶xz_caf(i, j, k, grid, Σ₁₂², u, v, w)
-            + 2 * ▶xy_cfa(i, j, k, grid, Σ₁₃², u, v, w)
-            + 2 *    Σ₂₃²(i, j, k, grid, u, v, w)
             )
 end
 
@@ -106,43 +82,13 @@ filter with `Δ`, and strain tensor dot product `Σ²`.
 @inline νₑ(ς, Cs, Δ, Σ²) = ς * (Cs*Δ)^2 * sqrt(2Σ²)
 
 @inline function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
-    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
-    Δ = Δ_ccc(i, j, k, grid, clo)
 
-    ς = stability(N², Σ², clo.Pr, clo.Cb)
+    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+     Δ = Δ_ccc(i, j, k, grid, clo)
+     ς = stability(N², Σ², clo.Pr, clo.Cb)
 
-    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
-end
-
-@inline function ν_ffc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
-    N² = ▶xyz_ffc(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
-    Σ² = ΣᵢⱼΣᵢⱼ_ffc(i, j, k, grid, u, v, w)
-    Δ = Δ_ffc(i, j, k, grid, clo)
-
-    ς = stability(N², Σ², clo.Pr, clo.Cb)
-
-    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
-end
-
-@inline function ν_fcf(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
-    N² = ▶x_faa(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
-    Σ² = ΣᵢⱼΣᵢⱼ_fcf(i, j, k, grid, u, v, w)
-    Δ = Δ_fcf(i, j, k, grid, clo)
-
-    ς = stability(N², Σ², clo.Pr, clo.Cb)
-
-    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
-end
-
-@inline function ν_cff(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
-    N² = ▶y_afa(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
-    Σ² = ΣᵢⱼΣᵢⱼ_cff(i, j, k, grid, u, v, w)
-    Δ = Δ_cff(i, j, k, grid, clo)
-
-    ς = stability(N², Σ², clo.Pr, clo.Cb)
-
-    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
+    return νₑ(ς, clo.Cs, Δ, Σ²)
 end
 
 @inline function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
@@ -152,5 +98,5 @@ end
 
     ς = stability(N², Σ², clo.Pr, clo.Cb)
 
-    return νₑ(ς, clo.Cs, Δ, Σ²) / clo.Pr + clo.κ_background
+    return νₑ(ς, clo.Cs, Δ, Σ²) / clo.Pr
 end

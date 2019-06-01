@@ -5,14 +5,14 @@ PoissonSolver(::CPU, grid::Grid) = PoissonSolverCPU(grid)
 PoissonSolver(::GPU, grid::Grid) = PoissonSolverGPU(grid)
 
 struct PoissonSolverCPU{KT, A, FFTT, DCTT, IFFTT, IDCTT} <: PoissonSolver
-    kx²::KT
-    ky²::KT
-    kz²::KT
-    storage::A
-    FFT!::FFTT
-    DCT!::DCTT
-    IFFT!::IFFTT
-    IDCT!::IDCTT
+        kx² :: KT
+        ky² :: KT
+        kz² :: KT
+    storage :: A
+       FFT! :: FFTT
+       DCT! :: DCTT
+      IFFT! :: IFFTT
+      IDCT! :: IDCTT
 end
 
 # Translate FFTW planner flag to string. Useful for logging and to print FFT plan creation timing.
@@ -24,15 +24,15 @@ let pf2s = Dict(FFTW.ESTIMATE   => "FFTW.ESTIMATE",
     plannerflag2string(k::Integer) = pf2s[Int(k)]
 end
 
-function PoissonSolverCPU(grid::Grid, planner_flag=FFTW.PATIENT)
+function PoissonSolverCPU(grid::Grid{T}, planner_flag=FFTW.PATIENT) where T
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     Lx, Ly, Lz = grid.Lx, grid.Ly, grid.Lz
 
     # Storage for RHS and Fourier coefficients is hard-coded to be Float64 because of precision issues with Float32.
     # See https://github.com/climate-machine/Oceananigans.jl/issues/55
-    kx² = zeros(Float64, Nx)
-    ky² = zeros(Float64, Ny)
-    kz² = zeros(Float64, Nz)
+    kx² = zeros(T, Nx)
+    ky² = zeros(T, Ny)
+    kz² = zeros(T, Nz)
 
     storage = zeros(Complex{Float64}, grid.Nx, grid.Ny, grid.Nz)
 
@@ -84,29 +84,29 @@ function solve_poisson_3d_ppn_planned!(solver::PoissonSolverCPU, grid::RegularCa
 end
 
 struct PoissonSolverGPU{KT, FT, A, FFTXYT, FFTZT, IFFTXYT, IFFTZT} <: PoissonSolver
-    kx²::KT
-    ky²::KT
-    kz²::KT
-    dct_factors::FT
-    idct_bfactors::FT
-    storage::A
-    FFT_xy!::FFTXYT
-    FFT_z!::FFTZT
-    IFFT_xy!::IFFTXYT
-    IFFT_z!::IFFTZT
+              kx² :: KT
+              ky² :: KT
+              kz² :: KT
+      dct_factors :: FT
+    idct_bfactors :: FT
+          storage :: A
+          FFT_xy! :: FFTXYT
+           FFT_z! :: FFTZT
+         IFFT_xy! :: IFFTXYT
+          IFFT_z! :: IFFTZT
 end
 
-function PoissonSolverGPU(grid::Grid)
+function PoissonSolverGPU(grid::Grid{T}) where T
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     Lx, Ly, Lz = grid.Lx, grid.Ly, grid.Lz
 
     # Storage for RHS and Fourier coefficients is hard-coded to be Float64 because of precision issues with Float32.
     # See https://github.com/climate-machine/Oceananigans.jl/issues/55
-    kx² = zeros(Float64, Nx)
-    ky² = zeros(Float64, Ny)
-    kz² = zeros(Float64, Nz)
+    kx² = zeros(T, Nx)
+    ky² = zeros(T, Ny)
+    kz² = zeros(T, Nz)
 
-    storage = CuArray(zeros(Complex{Float64}, grid.Nx, grid.Ny, grid.Nz))
+    storage = CuArray(zeros(Complex{T}, grid.Nx, grid.Ny, grid.Nz))
 
     # Creating Arrays for ki² and converting them to CuArrays to avoid scalar operations.
     for i in 1:Nx; kx²[i] = (2sin((i-1)*π/Nx)    / (Lx/Nx))^2; end
@@ -116,12 +116,12 @@ function PoissonSolverGPU(grid::Grid)
 
     # Exponential factors required to calculate the DCT on the GPU.
     factors = 2 * exp.(collect(-1im*π*(0:Nz-1) / (2Nz)))
-    dct_factors = CuArray{Complex{Float64}}(reshape(factors, 1, 1, Nz))
+    dct_factors = CuArray{Complex{T}}(reshape(factors, 1, 1, Nz))
 
     # "Backward" exponential factors required to calculate the IDCT on the GPU.
     bfactors = exp.(collect(1im*π*(0:Nz-1) / (2Nz)))
     bfactors[1] *= 0.5  # Zeroth coefficient of FFTW's REDFT01 is not multiplied by 2.
-    idct_bfactors = CuArray{Complex{Float64}}(reshape(bfactors, 1, 1, Nz))
+    idct_bfactors = CuArray{Complex{T}}(reshape(bfactors, 1, 1, Nz))
 
     FFT_xy!  = plan_fft!(storage, [1, 2])
     FFT_z!   = plan_fft!(storage, 3)

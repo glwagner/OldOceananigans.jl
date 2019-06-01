@@ -166,14 +166,15 @@ abstract type OutputWriter end
 abstract type Diagnostic end
 abstract type PoissonSolver end
 
-include("utils.jl")
+mutable struct Clock{T<:Number}
+  time::T
+  iteration::Int
+end
 
-include("model_configuration.jl")
-include("clock.jl")
+include("utils.jl")
 include("planetary_constants.jl")
 include("grids.jl")
 include("fields.jl")
-include("forcing.jl")
 include("fieldsets.jl")
 include("equation_of_state.jl")
 include("operators/operators.jl")

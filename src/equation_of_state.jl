@@ -34,3 +34,12 @@ function LinearEquationOfState(T=Float64;
 end
 
 @inline δρ(eos::LinearEquationOfState, T, i, j, k) = @inbounds -eos.ρ₀ * eos.βT * (T[i, j, k] - eos.T₀)
+
+"""
+    buoyancy(i, j, k, grid, eos, g, T, S)
+
+Calculate the buoyancy at grid point `i, j, k` associated with `eos`, 
+gravitational acceleration `g`, temperature `T`,  and salinity `S`.
+"""
+@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) = 
+    grav * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )

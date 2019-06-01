@@ -100,11 +100,8 @@ TurbulentDiffusivities(arch::Architecture, grid::Grid, args...) =
      
 function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::ConstantSmagorinsky)
     ν_ccc = zeros(arch, grid)
-    ν_ffc = zeros(arch, grid)
-    ν_fcf = zeros(arch, grid)
-    ν_cff = zeros(arch, grid)
     κ_ccc = zeros(arch, grid)
-    return (ν_ccc=ν_ccc, ν_ffc=ν_ffc, ν_fcf=ν_fcf, ν_cff=ν_cff, κ_ccc=κ_ccc)
+    return (ν_ccc=ν_ccc, κ_ccc=κ_ccc)
 end
 
 
