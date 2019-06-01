@@ -237,9 +237,7 @@ function calculate_diffusivities!(diffusivities, grid, closure::ConstantSmagorin
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                ν = ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S)
-                @inbounds diffusivities.ν_ccc[i, j, k] = ν
-                @inbounds diffusivities.κ_ccc[i, j, k] = closure.κ_background #ν / closure.Pr - closure.ν_background / closure.Pr + closure.κ_background
+                @inbounds diffusivities.ν_ccc[i, j, k] = ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S)
             end
         end
     end
