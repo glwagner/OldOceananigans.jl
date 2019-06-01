@@ -180,10 +180,10 @@ function calculate_boundary_source_terms!(model::Model{A}) where A <: Architectu
     # *Note*: for vertical boundaries in xz or yz, the transport coefficients should be evaluated at
     # different locations than the ones speciifc below, which are specific to boundaries in the xy-plane.
 
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, u_x_bcs.left, u_x_bcs.right, grid, u, Gu, ν₃₃.ffc,
+    apply_bcs!(arch, Val(coord), Bx, By, Bz, u_x_bcs.left, u_x_bcs.right, grid, u, Gu, ν₃₃.ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, v_x_bcs.left, v_x_bcs.right, grid, v, Gv, ν₃₃.fcf,
+    apply_bcs!(arch, Val(coord), Bx, By, Bz, v_x_bcs.left, v_x_bcs.right, grid, v, Gv, ν₃₃.ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
     #apply_bcs!(arch, Val(coord), Bx, By, Bz, w_x_bcs.left, w_x_bcs.right, grid, w, Gw, ν₃₃.cff,
