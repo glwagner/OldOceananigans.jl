@@ -284,37 +284,37 @@ end
 
 @inline function ▶x_faa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     i⁻¹ = decmod1(i, grid.Nx)
-    return T(0.5) * (F[i, j, k] + F[i⁻¹, j, k])
+    return @inbounds T(0.5) * (F[i, j, k] + F[i⁻¹, j, k])
 end
 
 @inline function ▶x_caa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     i⁺¹ = incmod1(i, grid.Nx)
-    return T(0.5) * (F[i, j, k] + F[i⁺¹, j, k])
+    return @inbounds T(0.5) * (F[i, j, k] + F[i⁺¹, j, k])
 end
 
 @inline function ▶y_afa(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     j⁻¹ = decmod1(j, grid.Ny)
-    return T(0.5) * (F[i, j, k] + F[i, j⁻¹, k])
+    return @inbounds T(0.5) * (F[i, j, k] + F[i, j⁻¹, k])
 end
 
 @inline function ▶y_aca(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     j⁺¹ = incmod1(j, grid.Ny)
-    return T(0.5) * (F[i, j, k] + F[i, j⁺¹, k])
+    return @inbounds T(0.5) * (F[i, j, k] + F[i, j⁺¹, k])
 end
 
 @inline function ▶z_aaf(i, j, k, grid::Grid{T}, F::AbstractArray, args...) where T
     if k == 1
-        return F[i, j, k]
+        return @inbounds F[i, j, k]
     else
-        return T(0.5) * (F[i, j, k] + F[i, j, k-1])
+        return @inbounds T(0.5) * (F[i, j, k] + F[i, j, k-1])
     end
 end
 
 @inline function ▶z_aac(i, j, k, grid::Grid{T}, w::AbstractArray, args...) where T
     if k == grid.Nz
-        return T(0.5) * w[i, j, k]
+        return @inbounds T(0.5) * w[i, j, k]
     else
-        return T(0.5) * (w[i, j, k] + w[i, j, k+1])
+        return @inbounds T(0.5) * (w[i, j, k] + w[i, j, k+1])
     end
 end
 
@@ -482,16 +482,16 @@ at index `i, j, k`.
     ν(i, j, k, grid, closure, eos, grav, u, v, w, T, S) * Σᵢⱼ(i, j, k, grid, u, v, w)
 
 @inline ν_Σᵢⱼ_ccc(i, j, k, grid, ν::TN, Σᵢⱼ::TS, u, v, w) where {TN<:AbstractArray, TS} =
-    ν[i, j, k] * Σᵢⱼ(i, j, k, grid, u, v, w)
+    @inbounds ν[i, j, k] * Σᵢⱼ(i, j, k, grid, u, v, w)
 
 @inline ν_Σᵢⱼ_ffc(i, j, k, grid, ν::TN, Σᵢⱼ::TS, u, v, w) where {TN<:AbstractArray, TS} =
-    ▶xy_ffa(i, j, k, grid, ν[i, j, k]) * Σᵢⱼ(i, j, k, grid, u, v, w)
+    @inbounds ▶xy_ffa(i, j, k, grid, ν) * Σᵢⱼ(i, j, k, grid, u, v, w)
 
 @inline ν_Σᵢⱼ_fcf(i, j, k, grid, ν::TN, Σᵢⱼ::TS, u, v, w) where {TN<:AbstractArray, TS} =
-    ▶xz_faf(i, j, k, grid, ν[i, j, k]) * Σᵢⱼ(i, j, k, grid, u, v, w)
+    @inbounds ▶xz_faf(i, j, k, grid, ν) * Σᵢⱼ(i, j, k, grid, u, v, w)
 
 @inline ν_Σᵢⱼ_cff(i, j, k, grid, ν::TN, Σᵢⱼ::TS, u, v, w) where {TN<:AbstractArray, TS} =
-    ▶yz_aff(i, j, k, grid, ν[i, j, k]) * Σᵢⱼ(i, j, k, grid, u, v, w)
+    @inbounds ▶yz_aff(i, j, k, grid, ν) * Σᵢⱼ(i, j, k, grid, u, v, w)
 
 #
 # Stress divergences

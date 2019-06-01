@@ -345,7 +345,6 @@ float_types = (Float32, Float64)
         end
     end
 
-    #=
     @testset "Dynamics tests" begin
         println("  Testing dynamics...")
         include("test_dynamics.jl")
@@ -382,5 +381,4 @@ float_types = (Float32, Float64)
             #@test test_smag_divflux_nonzeroness(T)
         end
     end
-    =#
 end # Oceananigans tests

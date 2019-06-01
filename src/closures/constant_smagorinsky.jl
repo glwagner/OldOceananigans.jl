@@ -31,8 +31,8 @@ ConstantSmagorinsky(T; kwargs...) =
 
 function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::ConstantSmagorinsky)
     ν_ccc = zeros(arch, grid)
-    κ_ccc = zeros(arch, grid)
-    return (ν_ccc=ν_ccc, κ_ccc=κ_ccc)
+    #κ_ccc = zeros(arch, grid)
+    return (ν_ccc=ν_ccc, ) #κ_ccc=κ_ccc)
 end
 
 "Return the double dot product of strain at `ccc`."
@@ -94,3 +94,102 @@ end
     νₑ = ν_ccc(i, j, k, grid, clo, eos, g, u, v, w, T, S)
     return (νₑ - clo.ν_background) / clo.Pr + clo.κ_background
 end
+
+"""
+    κ_∂x_ϕ(i, j, k, grid, ϕ, κ, closure, eos, g, u, v, w, T, S)
+
+Return `κ ∂x ϕ`, where `κ` is a function that computes
+diffusivity at cell centers (location `ccc`), and `ϕ` is an array of scalar
+data located at cell centers.
+"""
+@inline function κ_∂x_ϕ(i, j, k, grid, ϕ, ν, closure::ConstantSmagorinsky)
+    ν = ▶x_faa(i, j, k, grid, ν, closure)
+    κ = (ν - closure.ν_background) / closure.Pr + closure.κ_background
+    ∂x_ϕ = ∂x_faa(i, j, k, grid, ϕ)
+    return κ * ∂x_ϕ
+end
+
+"""
+    κ_∂y_ϕ(i, j, k, grid, ϕ, κ, closure::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+
+Return `κ ∂y ϕ`, where `κ` is a function that computes
+diffusivity at cell centers (location `ccc`), and `ϕ` is an array of scalar
+data located at cell centers.
+"""
+@inline function κ_∂y_ϕ(i, j, k, grid, ϕ, ν, closure::ConstantSmagorinsky)
+    ν = ▶y_afa(i, j, k, grid, ν, closure)
+    κ = (ν - closure.ν_background) / closure.Pr + closure.κ_background
+    ∂y_ϕ = ∂y_afa(i, j, k, grid, ϕ)
+    return κ * ∂y_ϕ
+end
+
+"""
+    κ_∂z_ϕ(i, j, k, grid, ϕ, κ, closure::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+
+Return `κ ∂z ϕ`, where `κ` is a function that computes
+diffusivity at cell centers (location `ccc`), and `ϕ` is an array of scalar
+data located at cell centers.
+"""
+@inline function κ_∂z_ϕ(i, j, k, grid, ϕ, ν, closure::ConstantSmagorinsky)
+    ν = ▶z_aaf(i, j, k, grid, ν, closure::ConstantSmagorinsky)
+    κ = (ν - closure.ν_background) / closure.Pr + closure.κ_background
+    ∂z_ϕ = ∂z_aaf(i, j, k, grid, ϕ)
+    return κ * ∂z_ϕ
+end
+
+"""
+    ∇_κ_∇_ϕ(i, j, k, grid, ϕ, closure, diffusivities)
+
+Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
+`closure`, where `ϕ` is an array of scalar data located at cell centers.
+"""
+@inline ∇_κ_∇ϕ(i, j, k, grid, ϕ, closure::ConstantSmagorinsky, diffusivities) = (
+      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, ϕ, diffusivities.ν_ccc, closure)
+    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, ϕ, diffusivities.ν_ccc, closure)
+    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.ν_ccc, closure)
+)
+
+"""
+    ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+
+Return the ``x``-component of the turbulent diffusive flux divergence:
+
+`∂x(2 ν Σ₁₁) + ∂y(2 ν Σ₁₁) + ∂z(2 ν Σ₁₁)`
+
+at the location `fcc`.
+"""
+@inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantSmagorinsky, u, v, w, diffusivities) = (
+      ∂x_2ν_Σ₁₁(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂y_2ν_Σ₁₂(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂z_2ν_Σ₁₃(i, j, k, grid, closure, u, v, w, diffusivities)
+)
+
+"""
+    ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+
+Return the ``y``-component of the turbulent diffusive flux divergence:
+
+`∂x(2 ν Σ₂₁) + ∂y(2 ν Σ₂₂) + ∂z(2 ν Σ₂₂)`
+
+at the location `ccf`.
+"""
+@inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::ConstantSmagorinsky, u, v, w, diffusivities) = (
+      ∂x_2ν_Σ₂₁(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂y_2ν_Σ₂₂(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂z_2ν_Σ₂₃(i, j, k, grid, closure, u, v, w, diffusivities)
+)
+
+"""
+    ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, diffusivities)
+
+Return the ``z``-component of the turbulent diffusive flux divergence:
+
+`∂x(2 ν Σ₃₁) + ∂y(2 ν Σ₃₂) + ∂z(2 ν Σ₃₃)`
+
+at the location `ccf`.
+"""
+@inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::ConstantSmagorinsky, u, v, w, diffusivities) = (
+      ∂x_2ν_Σ₃₁(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂y_2ν_Σ₃₂(i, j, k, grid, closure, u, v, w, diffusivities)
+    + ∂z_2ν_Σ₃₃(i, j, k, grid, closure, u, v, w, diffusivities)
+)
