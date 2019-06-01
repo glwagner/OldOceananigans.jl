@@ -18,10 +18,13 @@ function run_first_AB2_time_step_tests(arch, FT)
     Lx, Ly, Lz = 1, 2, 3
     Δt = 1
 
-    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), arch=arch, float_type=FT)
-
     add_ones(args...) = 1.0
-    model.forcing = Forcing(nothing, nothing, nothing, add_ones, nothing)
+
+    model = Model(arch=arch, float_type=FT,
+        N = (Nx, Ny, Nz), 
+        L = (Lx, Ly, Lz), 
+        forcing = Forcing(nothing, nothing, nothing, add_ones, nothing)
+    )
 
     time_step!(model, 1, Δt)
 

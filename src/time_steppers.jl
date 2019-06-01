@@ -43,14 +43,14 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
             U = model.velocities
            tr = model.tracers
            pr = model.pressures
-      #forcing = model.forcing
+      forcing = model.forcing
       closure = model.closure
     poisson_solver = model.poisson_solver
      turbdiffs = model.turbdiffs
 
-    bcs = model.boundary_conditions
-    G = model.G
-    Gp = model.Gp
+    bcs = model.bcs
+      G = model.G
+     Gp = model.Gp
 
     # We can use the same array for the right-hand-side RHS and the solution ϕ.
     RHS, ϕ = poisson_solver.storage, poisson_solver.storage
@@ -81,7 +81,7 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
             grid, Gⁿ..., G⁻...)
 
         @launch device(arch) threads=(Tx, Ty) blocks=(Bx, By, Bz) calculate_interior_source_terms!(
-            grid, constants, eos, closure, uvw..., TS..., Gⁿ..., turbdiffs) #, forcing)
+            grid, constants, eos, closure, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
                                                                                                    
         calculate_boundary_source_terms!(model)
 
@@ -152,7 +152,7 @@ function calculate_boundary_source_terms!(model::Model{A}) where A <: Architectu
     clock = model.clock
     eos =  model.eos
     closure = model.closure
-    bcs = model.boundary_conditions
+    bcs = model.bcs
     U = model.velocities
     tr = model.tracers
     G = model.G

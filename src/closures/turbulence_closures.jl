@@ -95,14 +95,6 @@ include("constant_smagorinsky.jl")
 κ₂₂ = (ccc=κ₂₂_ccc, )
 κ₃₃ = (ccc=κ₃₃_ccc, )
 
-TurbulentDiffusivities(arch::Architecture, grid::Grid, args...) = 
-    (ν_ccc=nothing, ν_ffc=nothing, ν_fcf=nothing, ν_cff=nothing, κ_ccc=nothing)
-     
-function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::ConstantSmagorinsky)
-    ν_ccc = zeros(arch, grid)
-    κ_ccc = zeros(arch, grid)
-    return (ν_ccc=ν_ccc, κ_ccc=κ_ccc)
-end
-
+TurbulentDiffusivities(arch::Architecture, grid::Grid, args...) = nothing
 
 end # module

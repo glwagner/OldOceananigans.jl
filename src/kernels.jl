@@ -17,38 +17,17 @@ function store_previous_source_terms!(grid::RegularCartesianGrid{FT}, Gu::A, Gv:
     @synchronize
 end
 
-"Update the hydrostatic pressure perturbation pHY′ and buoyancy δρ."
-function update_buoyancy!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, 
-                          eos::LinearEquationOfState{FT}, 
-                          T::A, pHY′::A) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
-
-    gΔz = constants.g * grid.Δz
-
-    @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
-        @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-            @inbounds pHY′[i, j, 1] = 0.5 * gΔz * δρ(eos, T, i, j, 1)
-            @unroll for k in 2:grid.Nz
-                @inbounds pHY′[i, j, k] = (pHY′[i, j, k-1] 
-                                           + gΔz * 0.5 * (δρ(eos, T, i, j, k-1) + δρ(eos, T, i, j, k)))
-            end
-        end
-    end
-
-    @synchronize
-end
-
 "Store previous value of the source term and calculate current source term."
 function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, 
                                           eos::LinearEquationOfState{FT}, closure::TurbulenceClosure{FT}, 
                                           u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A, 
-                                          GS::A, diffusivities) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
+                                          GS::A, diffusivities, F) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     Δx, Δy, Δz = grid.Δx, grid.Δy, grid.Δz
 
     grav = constants.g
     fCor = constants.f
-    ρ₀ = eos.ρ₀
 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
@@ -57,7 +36,7 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
                                             + fv(grid, v, fCor, i, j, k)
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            #+ F.u(grid, u, v, w, T, S, i, j, k)
+                                            + F.u(grid, u, v, w, T, S, i, j, k)
                                             #- δx_c2f(grid, pHY′, i, j, k) / (Δx * ρ₀)
                                            )
 
@@ -65,27 +44,27 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
                                             - fu(grid, u, fCor, i, j, k)
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            #+ F.v(grid, u, v, w, T, S, i, j, k)
+                                            + F.v(grid, u, v, w, T, S, i, j, k)
                                             #- δy_c2f(grid, pHY′, i, j, k) / (Δy * ρ₀)
                                            )
 
                 # w-momentum equation: comment about how pressure and buoyancy are handled
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
                                          + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                         #+ F.w(grid, u, v, w, T, S, i, j, k)
+                                         + F.w(grid, u, v, w, T, S, i, j, k)
                                          + buoyancy(i, j, k, grid, eos, grav, T, S)
                                            )
 
                 # temperature equation
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
                                          + ∇_κ_∇ϕ(i, j, k, grid, T, closure, diffusivities)
-                                         #+ F.T(grid, u, v, w, T, S, i, j, k)
+                                         + F.T(grid, u, v, w, T, S, i, j, k)
                                            )
 
                 # salinity equation
                 @inbounds GS[i, j, k] = (-div_flux(grid, u, v, w, S, i, j, k)
                                          + ∇_κ_∇ϕ(i, j, k, grid, S, closure, diffusivities)
-                                         # + F.S(grid, u, v, w, T, S, i, j, k)
+                                         + F.S(grid, u, v, w, T, S, i, j, k)
                                           )
             end
         end
@@ -211,5 +190,3 @@ function calculate_diffusivities!(grid::Grid, closure::ConstantSmagorinsky,
     end
     @synchronize
 end
-
-

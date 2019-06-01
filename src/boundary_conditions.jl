@@ -51,7 +51,19 @@ mutable struct CoordinateBoundaryConditions{L, R}
     right :: R
 end
 
-CoordinateBoundaryConditions() = CoordinateBoundaryConditions(DefaultBC(), DefaultBC())
+function CoordinateBoundaryConditions(;
+    left = DefaultBC(),
+    right = DefaultBC()
+   )
+    return CoordinateBoundaryConditions(left, right)
+end
+
+function ZBoundaryConditions(;
+    bottom = DefaultBC(),
+    top = DefaultBC()
+   )
+    return CoordinateBoundaryConditions(top, bottom)
+end
 
 const CBC = CoordinateBoundaryConditions
 
@@ -86,6 +98,14 @@ struct FieldBoundaryConditions{X, Y, Z} <: FieldVector{dims, CoordinateBoundaryC
     z :: Z
 end
 
+function FieldBoundaryConditions(; 
+    x = CoordinateBoundaryConditions(),
+    y = CoordinateBoundaryConditions(),
+    z = CoordinateBoundaryConditions()
+   )
+    FieldBoundaryConditions(x, y, z)
+end
+
 """
     BoundaryConditions()
 
@@ -100,13 +120,19 @@ struct ModelBoundaryConditions{UBC, VBC, WBC, TBC, SBC} <: FieldVector{nsolution
     S :: SBC
 end
 
-FieldBoundaryConditions() = FieldBoundaryConditions(CoordinateBoundaryConditions(),
-                                                    CoordinateBoundaryConditions(),
-                                                    CoordinateBoundaryConditions())
-
 function ModelBoundaryConditions()
     bcs = (FieldBoundaryConditions() for i = 1:length(solution_fields))
     return ModelBoundaryConditions(bcs...)
+end
+
+function BoundaryConditions(; 
+    u = FieldBoundaryConditions(),
+    v = FieldBoundaryConditions(),
+    w = FieldBoundaryConditions(),
+    T = FieldBoundaryConditions(),
+    S = FieldBoundaryConditions()
+   )
+    return ModelBoundaryConditions(u, v, w, T, S)
 end
 
 #

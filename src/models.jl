@@ -1,25 +1,24 @@
 using .TurbulenceClosures
 
-mutable struct Model{A<:Architecture, G, VV, TT, PP, BCS, TG, PS, SF, TC, TD, T}
-              arch :: A                  # Computer `Architecture` on which `Model` is run.
-              grid :: G                  # Grid of physical points on which `Model` is solved.
-             clock :: Clock{T}           # Tracks iteration number and simulation time of `Model`.
-               eos :: LinearEquationOfState{T}# Defines relationship between temperature,  salinity, and 
-                                         # buoyancy in the Boussinesq vertical momentum equation.
-         constants :: PlanetaryConstants{T} # Set of physical constants, inc. gravitational acceleration.
-        velocities :: VV # Container for velocity fields `u`, `v`, and `w`.
-           tracers :: TT # Container for tracer fields.
-         pressures :: PP # Container for hydrostatic and nonhydrostatic pressure.
-           #forcing                       # Container for forcing functions defined by the user
-           closure :: TC                 # Diffusive 'turbulence closure' for all model fields
-    boundary_conditions :: BCS # Container for 3d bcs on all fields.
-                 G :: TG # Container for right-hand-side of PDE that governs `Model`
-                Gp :: TG # RHS at previous time-step (for Adams-Bashforth time integration)
-    poisson_solver :: PS # ::PoissonSolver or ::PoissonSolverGPU
-       stepper_tmp :: SF # Temporary fields used for the Poisson solver.
+mutable struct Model{A<:Architecture, G, VV, TT, PP, FF, BCS, TG, PS, SF, TC, TD, T}
+              arch :: A                         # Computer `Architecture` on which `Model` is run.
+              grid :: G                         # Grid of physical points on which `Model` is solved.
+             clock :: Clock{T}                  # Tracks iteration number and simulation time of `Model`.
+               eos :: LinearEquationOfState{T}  # Defines relationship between temp, salinity, buoyancy.
+         constants :: PlanetaryConstants{T}     # Set of physical constants, inc. gravitational acceleration.
+        velocities :: VV                        # Container for velocity fields `u`, `v`, and `w`.
+           tracers :: TT                        # Container for tracer fields.
+         pressures :: PP                        # Container for hydrostatic and nonhydrostatic pressure.
+           forcing :: FF                        # Container for forcing functions defined by the user
+           closure :: TC                        # Diffusive 'turbulence closure' for all model fields
+               bcs :: BCS                       # Container for 3d bcs on all fields.
+                 G :: TG                        # Container for right-hand-side of PDE that governs `Model`
+                Gp :: TG                        # RHS at previous time-step (for Adams-Bashforth time integration)
+    poisson_solver :: PS                        # ::PoissonSolver or ::PoissonSolverGPU
+       stepper_tmp :: SF                        # Temporary fields used for the Poisson solver.
          turbdiffs :: TD
-    output_writers :: Array{OutputWriter, 1} # Objects that write data to disk.
-       diagnostics :: Array{Diagnostic, 1}   # Objects that calc diagnostics on-line during simulation.
+    output_writers :: Array{OutputWriter, 1}    # Objects that write data to disk.
+       diagnostics :: Array{Diagnostic, 1}      # Objects that calc diagnostics on-line during simulation.
 end
 
 
@@ -44,8 +43,8 @@ function Model(;
      constants = Earth(float_type),
            eos = LinearEquationOfState(float_type),
     # Forcing and boundary conditions for (u, v, w, T, S)
-       #forcing = Forcing(nothing, nothing, nothing, nothing, nothing),
-    boundary_conditions = ModelBoundaryConditions(),
+       forcing = Forcing(nothing, nothing, nothing, nothing, nothing),
+           bcs = ModelBoundaryConditions(),
     # Output and diagonstics
     output_writers = OutputWriter[],
        diagnostics = Diagnostic[],
@@ -69,16 +68,14 @@ function Model(;
     # Set the default initial condition
     initialize_with_defaults!(eos, tracers, velocities, G, Gp)
 
-    #Model(arch, grid, clock, eos, constants,
-    #      velocities, tracers, pressures, forcing, closure, boundary_conditions,
     Model(arch, grid, clock, eos, constants,
-          velocities, tracers, pressures, closure, boundary_conditions,
+          velocities, tracers, pressures, forcing, closure, bcs,
           G, Gp, poisson_solver, stepper_tmp, turbdiffs, output_writers, diagnostics)
 end
 
 arch(model::Model{A}) where A <: Architecture = A
 float_type(m::Model) = eltype(model.grid)
-add_bcs!(model::Model; kwargs...) = add_bcs(model.boundary_conditions; kwargs...)
+add_bcs!(model::Model; kwargs...) = add_bcs(model.bcs; kwargs...)
 
 function initialize_with_defaults!(eos, tracers, sets...)
 
