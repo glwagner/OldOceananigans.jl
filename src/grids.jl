@@ -9,42 +9,42 @@ and \$Δz\$ are constants. Fields are stored using floating-point values of type
 of type `A`.
 """
 struct RegularCartesianGrid{T<:AbstractFloat, R<:AbstractRange} <: Grid{T}
-    dim::Int
-    # Number of grid points in (x,y,z).
-    Nx::Int
-    Ny::Int
-    Nz::Int
-    # Halo size in (x,y,z).
-    Hx::Int
-    Hy::Int
-    Hz::Int
-    # Total number of grid points (including halo regions).
-    Tx::Int
-    Ty::Int
-    Tz::Int
-    # Domain size [m].
-    Lx::T
-    Ly::T
-    Lz::T
-    # Grid spacing [m].
-    Δx::T
-    Δy::T
-    Δz::T
-    # Cell face areas [m²].
-    Ax::T
-    Ay::T
-    Az::T
-    # Volume of a cell [m³].
-    V::T
-    # Range of coordinates at the centers of the cells.
-    xC::R
-    yC::R
-    zC::R
-    # Range of grid coordinates at the faces of the cells.
-    # Note: there are Nx+1 faces in the x-dimension, Ny+1 in the y, and Nz+1 in the z.
-    xF::R
-    yF::R
-    zF::R
+    dim :: Int
+     # Number of grid points in (x,y,z).
+     Nx :: Int
+     Ny :: Int
+     Nz :: Int
+     # Halo size in (x,y,z).
+     Hx :: Int
+     Hy :: Int
+     Hz :: Int
+     # Total number of grid points (including halo regions).
+     Tx :: Int
+     Ty :: Int
+     Tz :: Int
+     # Domain size [m].
+     Lx :: T
+     Ly :: T
+     Lz :: T
+     # Grid spacing [m].
+     Δx :: T
+     Δy :: T
+     Δz :: T
+     # Cell face areas [m²].
+     Ax :: T
+     Ay :: T
+     Az :: T
+     # Volume of a cell [m³].
+      V :: T
+     # Range of coordinates at the centers of the cells.
+     xC :: R
+     yC :: R
+     zC :: R
+     # Range of grid coordinates at the faces of the cells.
+     # Note: there are Nx+1 faces in the x-dimension, Ny+1 in the y, and Nz+1 in the z.
+     xF :: R
+     yF :: R
+     zF :: R
 end
 
 """
