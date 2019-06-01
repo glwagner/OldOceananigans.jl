@@ -77,12 +77,16 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
     for n in 1:Nt
         χ = ifelse(model.clock.iteration == 0, FT(-0.5), FT(0.125)) # Adams-Bashforth (AB2) parameter.
 
+        @launch device(arch) threads=threads blocks=blocks store_previous_source_terms!(grid, Gⁿ..., G⁻...)
+
+        @launch device(arch) update_hydrostatic_pressure!(
+            pr.pHY′.data, grid, constants, eos, tr.T.data, tr.S.data, threads=(Tx, Ty), blocks=(Bx, By))
+
         @launch device(arch) threads=threads blocks=blocks calculate_diffusivities!(
             grid, closure, turbdiffs, eos, constants.g, uvw..., TS...)
 
-        @launch device(arch) threads=threads blocks=blocks store_previous_source_terms!(grid, Gⁿ..., G⁻...)
         @launch device(arch) threads=threads blocks=blocks calculate_interior_source_terms!(
-            grid, constants, eos, closure, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
+            grid, constants, eos, closure, pr.pHY′.data, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
                                                                                                    
         calculate_boundary_source_terms!(model)
 

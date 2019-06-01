@@ -51,20 +51,21 @@ mutable struct CoordinateBoundaryConditions{L, R}
     right :: R
 end
 
+CoordinateBoundaryConditions() = CoordinateBoundaryConditions(DefaultBC(), DefaultBC())
+
+#=
 function CoordinateBoundaryConditions(;
     left = DefaultBC(),
     right = DefaultBC()
    )
     return CoordinateBoundaryConditions(left, right)
 end
+=#
 
-function ZBoundaryConditions(;
-    bottom = DefaultBC(),
-    top = DefaultBC()
-   )
-    return CoordinateBoundaryConditions(top, bottom)
-end
+ZBoundaryConditions(; top=DefaultBC(), bottom=DefaultBC()) = 
+    CoordinateBoundaryConditions(top, bottom)
 
+#=
 const CBC = CoordinateBoundaryConditions
 
 #=
@@ -84,6 +85,7 @@ Base.getproperty(cbc::CBC, side::Symbol) = getbc(cbc, Val(side))
 getbc(cbc::CBC, ::Val{S}) where S = getfield(cbc, S)
 getbc(cbc::CBC, ::Val{:bottom}) = getfield(cbc, :right)
 getbc(cbc::CBC, ::Val{:top}) = getfield(cbc, :left)
+=#
 
 """
     FieldBoundaryConditions()

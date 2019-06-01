@@ -1,3 +1,64 @@
+function ▶z_buoyancy_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
+    if k == 1
+        return buoyancy(i, j, 1, grid, eos, grav, T, S)
+    else
+        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S) 
+                        + buoyancy(i, j, k-1, grid, eos, grav, T, S))
+    end
+end
+
+function ▶z_buoyancy_w_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
+    if k == 1
+        return -zero(FT)
+    else
+        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S) 
+                        + buoyancy(i, j, k-1, grid, eos, grav, T, S))
+    end
+end
+
+
+
+"""
+    update_hydrostatic_pressure!(ph, grid, constants, eos, T, S)
+
+Calculate the perbutation hydrostatic pressure `ph` from the buoyancy field
+associated with temperature `T`, salinity `S`, gravitational constant
+`constants.g`, and equation of state `eos`.
+
+The perturbation hydrostatic pressure `ph` is defined as the part of pressure
+that balances buoyancy in the vertical momentum equation,
+
+    `0 = -∂z ph + b`.
+
+Pressure and buoyancy are both are defined at cell centers.
+Thus evaluting the discrete hydrostatic pressure equation on face `k`
+requires interpolating the buoyancy field. Given the reverse indexing convention,
+the hydrostatic pressure gradient on face `k` is `(phᵏ⁻¹ - phᵏ) / Δz`.
+The discrete hydrostatic pressure equation is therefore:
+
+    `0 = -(phᵏ⁻¹ - phᵏ) / Δz + (bᵏ + bᵏ⁻¹) / 2`,
+
+which, rearranged and using the notation `▶z_aaf(bᵏ) = (bᵏ + bᵏ⁻¹) / 2`,
+yields
+
+    `pᵏ = pᵏ⁻¹ - Δz * ▶z_aaf(bᵏ)`.
+
+We solve this discrete equation by integrating from the top down,
+using the surface buoyancy to set the boundary condition.
+"""
+function update_hydrostatic_pressure!(pHY′, grid::Grid{FT}, constants, eos, T, S) where FT
+    @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+        @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+            @inbounds pHY′[i, j, 1] = - grid.Δz * ▶z_buoyancy_aaf(i, j, 1, grid, eos, constants.g, T, S)
+            @unroll for k in 2:grid.Nz
+                @inbounds pHY′[i, j, k] = pHY′[i, j, k-1] - grid.Δz * ▶z_buoyancy_aaf(i, j, k, grid, eos, constants.g, T, S)
+            end
+        end
+    end
+
+    @synchronize
+end
+
 """Store previous source terms before updating them."""
 function store_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, GpT, GpS)
     @loop for k in (1:grid.Nz; blockIdx().z)
@@ -17,7 +78,7 @@ end
 "Store previous value of the source term and calculate current source term."
 function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, 
                                           eos::LinearEquationOfState{FT}, closure::TurbulenceClosure{FT}, 
-                                          u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A, 
+                                          pHY′::A, u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A, 
                                           GS::A, diffusivities, F) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
@@ -32,6 +93,7 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
                 # u-momentum equation
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
                                             + fv(grid, v, fCor, i, j, k)
+                                            - δx_c2f(grid, pHY′, i, j, k) / Δx
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.u(grid, u, v, w, T, S, i, j, k)
                                         )
@@ -39,13 +101,14 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
                 # v-momentum equation
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
                                             - fu(grid, u, fCor, i, j, k)
+                                            - δy_c2f(grid, pHY′, i, j, k) / Δy
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.v(grid, u, v, w, T, S, i, j, k)
                                         )
 
                 # w-momentum equation
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
-                                         + buoyancy(i, j, k, grid, eos, grav, T, S)
+                #                         + ▶z_buoyancy_aaf(i, j, k, grid, eos, grav, T, S)
                                          + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                          + F.w(grid, u, v, w, T, S, i, j, k)
                                         )
@@ -122,6 +185,7 @@ function idct_permute!(grid, ϕ, pNHS)
     @loop for k in (1:Nz; blockIdx().z)
         @loop for j in (1:Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                #if k > Nz/2
                 if k <= Nz/2
                     @inbounds pNHS[i, j, 2k-1] = real(ϕ[i, j, k])
                 else
@@ -137,7 +201,6 @@ end
 function update_velocities_and_tracers!(grid, u, v, w, T, S, pNHS, Gu, Gv, Gw, 
                                         GT, GS, Gpu, Gpv, Gpw, GpT, GpS, Δt)
                                         
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -167,14 +230,13 @@ function compute_w_from_continuity!(grid, u, v, w)
 end
 
 """Store previous source terms before updating them."""
-function calculate_diffusivities!(grid::Grid, closure::ConstantSmagorinsky, 
-                                  turbdiff, eos, grav, u, v, w, T, S) 
+function calculate_diffusivities!(grid::Grid, closure::ConstantSmagorinsky, diffusivities, eos, grav, u, v, w, T, S) 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                @inbounds turbdiff.ν_ccc[i, j, k] = (ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S) 
-                                                     + closure.ν_background)
-                @inbounds turbdiff.κ_ccc[i, j, k] = turbdiff.ν_ccc[i, j, k] / closure.Pr + closure.κ_background
+                ν = ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S)
+                @inbounds diffusivities.ν_ccc[i, j, k] = ν
+                @inbounds diffusivities.κ_ccc[i, j, k] = (ν - closure.ν_background) / closure.Pr + closure.κ_background
             end
         end
     end

@@ -12,8 +12,9 @@ function TracerFields(arch::Architecture, grid::Grid)
 end
 
 function PressureFields(arch::Architecture, grid::Grid)
+    pHY′ = CellField(arch, grid)
     pNHS = CellField(arch, grid)
-    return (pHY′=nothing, pNHS=pNHS)
+    return (pHY′=pHY′, pNHS=pNHS)
 end
 
 function SourceTerms(arch::Architecture, grid::Grid)

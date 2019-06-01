@@ -83,20 +83,12 @@ filter with `Δ`, and strain tensor dot product `Σ²`.
 
 @inline function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
-
     N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
      Δ = Δ_ccc(i, j, k, grid, clo)
      ς = stability(N², Σ², clo.Pr, clo.Cb)
 
-    return νₑ(ς, clo.Cs, Δ, Σ²)
+    return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-@inline function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
-    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
-    Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
-    Δ = Δ_ccc(i, j, k, grid, clo)
-
-    ς = stability(N², Σ², clo.Pr, clo.Cb)
-
-    return νₑ(ς, clo.Cs, Δ, Σ²) / clo.Pr
-end
+@inline κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S) =
+    (ν_ccc(i, j, k, grid, clo, eos, g, u, v, w, T, S) - clo.ν_background) / clo.Pr + clo.κ_background

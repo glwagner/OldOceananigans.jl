@@ -45,7 +45,8 @@ function run_thermal_bubble_regression_tests(arch)
     Lx, Ly, Lz = 100, 100, 100
     Δt = 6
 
-    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), arch=arch, ν=4e-2, κ=4e-2)
+    model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), arch=arch, ν=4e-2, κ=4e-2,
+                  eos=LinearEquationOfState(T₀=9.85, βT=1.67e-4))
 
     # Add a cube-shaped warm temperature anomaly that takes up the middle 50%
     # of the domain volume.
@@ -83,11 +84,11 @@ function run_thermal_bubble_regression_tests(arch)
     end
 
     # Now test that the model state matches the regression output.
-    @test_skip all(Array(data(model.velocities.u)) .≈ u)
-    @test_skip all(Array(data(model.velocities.v)) .≈ v)
-    @test_skip all(Array(data(model.velocities.w)) .≈ w)
-    @test_skip all(Array(data(model.tracers.T))    .≈ T)
-    @test_skip all(Array(data(model.tracers.S))    .≈ S)
+    @test all(Array(data(model.velocities.u)) .≈ u)
+    @test all(Array(data(model.velocities.v)) .≈ v)
+    @test all(Array(data(model.velocities.w)) .≈ w)
+    @test all(Array(data(model.tracers.T))    .≈ T)
+    @test all(Array(data(model.tracers.S))    .≈ S)
 end
 
 function run_deep_convection_regression_tests()
@@ -156,7 +157,7 @@ function run_deep_convection_regression_tests()
 end
 
 Closure(::Val{:ConstantSmagorinsky}, ν, κ) =
-    ConstantSmagorinsky(Cs=-0.0, Cb=-0.0, ν_background=ν, κ_background=κ)
+    ConstantSmagorinsky(Cs=-0.0, Cb=-0.0, Pr=1.0, ν_background=ν, κ_background=κ)
 
 Closure(::Val{:ConstantIsotropicDiffusivity}, ν, κ) =
     ConstantIsotropicDiffusivity(ν=ν, κ=κ)
@@ -282,6 +283,8 @@ function run_rayleigh_benard_regression_test(arch, closure)
     field_names = ["u", "v", "w", "T", "S"]
     fields = [model.velocities.u, model.velocities.v, model.velocities.w, model.tracers.T, model.tracers.S]
     fields_gm = [u₁, v₁, w₁, T₁, S₁]
+    @show model.closure
+    @info(@sprintf("Rayleigh-Benard regression test with closure: %s", closure))
     for (field_name, φ, φ_gm) in zip(field_names, fields, fields_gm)
         φ_min = minimum(Array(data(φ)) - φ_gm)
         φ_max = maximum(Array(data(φ)) - φ_gm)
@@ -293,10 +296,10 @@ function run_rayleigh_benard_regression_test(arch, closure)
     end
 
     # Now test that the model state matches the regression output.
-    @test_skip all(Array(data(model.velocities.u)) .≈ u₁)
-    @test_skip all(Array(data(model.velocities.v)) .≈ v₁)
-    @test_skip all(Array(data(model.velocities.w)) .≈ w₁)
-    @test_skip all(Array(data(model.tracers.T))    .≈ T₁)
-    @test_skip all(Array(data(model.tracers.S))    .≈ S₁)
+    @test all(Array(data(model.velocities.u)) .≈ u₁)
+    @test all(Array(data(model.velocities.v)) .≈ v₁)
+    @test all(Array(data(model.velocities.w)) .≈ w₁)
+    @test all(Array(data(model.tracers.T))    .≈ T₁)
+    @test all(Array(data(model.tracers.S))    .≈ S₁)
     return nothing
 end

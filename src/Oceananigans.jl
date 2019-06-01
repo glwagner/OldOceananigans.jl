@@ -54,6 +54,7 @@ export
     ZBoundaryConditions,
     CoordinateBoundaryConditions,
     BoundaryCondition,
+    DefaultBC,
     Default,
     Flux,
     Gradient,

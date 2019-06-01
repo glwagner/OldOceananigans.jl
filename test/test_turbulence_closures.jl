@@ -152,8 +152,8 @@ function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
     T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
 
     return (
-            ν₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == 0.0 &&
-            κ₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == 0.0 
+            ν₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
+            κ₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(κᵇ) 
         )
 end
 
