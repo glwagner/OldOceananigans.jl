@@ -42,10 +42,11 @@ end
                        eos, grav, u, v, w, T, S) where FT
 
     r = Δ²ₐ_uᵢₐ_uⱼₐ_Σᵢⱼ_ccc(i, j, k, grid, closure, u, v, w)
-    q = tr_∇u_ccc(i, j, k, grid, u, v, w)
     ζ = Δ²ᵢ_wᵢ_bᵢ_ccc(i, j, k, grid, closure, eos, grav, w, T, S)
+    q = tr_∇u_ccc(i, j, k, grid, u, v, w)
 
     νdagger = -closure.C * (r - ζ) / q
+    #νdagger = -closure.C * r / q #(r - ζ) / q
 
     return max(zero(FT), νdagger) + closure.ν
 end
@@ -69,10 +70,6 @@ end
 @inline ∂x_u²(ijk...) = ∂x_u(ijk...)^2
 @inline ∂y_v²(ijk...) = ∂y_v(ijk...)^2
 @inline ∂z_w²(ijk...) = ∂z_w(ijk...)^2
-
-@inline ∂x_u²_Σ₁₁(ijk...) = ∂x_u²(ijk...) * Σ₁₁(ijk...)
-@inline ∂y_v²_Σ₂₂(ijk...) = ∂y_v²(ijk...) * Σ₂₂(ijk...)
-@inline ∂z_w²_Σ₃₃(ijk...) = ∂y_v²(ijk...) * Σ₃₃(ijk...)
 
 # ffc
 @inline ∂x_v²(ijk...) = ∂x_v(ijk...)^2
@@ -112,9 +109,9 @@ end
     ijkuvw = (i, j, k, grid, u, v, w)
 
     Δx²_uᵢ₁_uⱼ₁_Σ₁ⱼ = Δx^2 * (
-        ∂x_u²_Σ₁₁(ijkuvw...)
-      +       Σ₂₂(ijkuvw...) * ▶xy_cca(ijk..., ∂x_v², uvw...)
-      +       Σ₃₃(ijkuvw...) * ▶xz_cac(ijk..., ∂x_w², uvw...)
+         Σ₁₁(ijkuvw...) * ∂x_u(ijk..., u)^2
+      +  Σ₂₂(ijkuvw...) * ▶xy_cca(ijk..., ∂x_v², uvw...)
+      +  Σ₃₃(ijkuvw...) * ▶xz_cac(ijk..., ∂x_w², uvw...)
 
       +  2 * ∂x_u(ijkuvw...) * ▶xy_cca(ijk..., ∂x_v_Σ₁₂, uvw...)
       +  2 * ∂x_u(ijkuvw...) * ▶xz_cac(ijk..., ∂x_w_Σ₁₃, uvw...)
@@ -122,19 +119,19 @@ end
     )
 
     Δy²_uᵢ₂_uⱼ₂_Σ₂ⱼ = Δy^2 * (
-      +       Σ₁₁(ijkuvw...) * ▶xy_ffa(ijk..., ∂y_u², uvw...)
-      + ∂y_v²_Σ₂₂(ijkuvw...)
-      +       Σ₃₃(ijkuvw...) * ▶yz_aff(ijk..., ∂y_w², uvw...)
+      + Σ₁₁(ijkuvw...) * ▶xy_cca(ijk..., ∂y_u², uvw...)
+      + Σ₂₂(ijkuvw...) * ∂y_v(ijk..., v)^2
+      + Σ₃₃(ijkuvw...) * ▶yz_acc(ijk..., ∂y_w², uvw...)
 
-      +  2 * ∂y_v(ijkuvw...) * ▶xy_ffa(ijk..., ∂y_u_Σ₁₂, uvw...)
+      +  2 * ∂y_v(ijkuvw...) * ▶xy_cca(ijk..., ∂y_u_Σ₁₂, uvw...)
       +  2 * ▶xy_cca(ijk..., ∂y_u, uvw...) * ▶yz_acc(ijk..., ∂y_w, uvw...) * ▶xz_cac(ijk..., Σ₁₃, uvw...)
       +  2 * ∂y_v(ijkuvw...) * ▶yz_acc(ijk..., ∂y_w_Σ₂₃, uvw...)
     )
 
     Δz²_uᵢ₃_uⱼ₃_Σ₃ⱼ = Δz^2 * (
-      +       Σ₁₁(ijkuvw...) * ▶xz_cac(ijk..., ∂z_u², uvw...)
-      +       Σ₂₂(ijkuvw...) * ▶yz_acc(ijk..., ∂z_v², uvw...)
-      + ∂z_w²_Σ₃₃(ijkuvw...)
+      + Σ₁₁(ijkuvw...) * ▶xz_cac(ijk..., ∂z_u², uvw...)
+      + Σ₂₂(ijkuvw...) * ▶yz_acc(ijk..., ∂z_v², uvw...)
+      + Σ₃₃(ijkuvw...) * ∂z_w(ijk..., w)^2
 
       +  2 * ▶xz_cac(ijk..., ∂z_u, uvw...) * ▶yz_acc(ijk..., ∂z_v, uvw...) * ▶xy_cca(ijk..., Σ₁₂, uvw...)
       +  2 * ∂z_w(ijkuvw...) * ▶xz_cac(ijk..., ∂z_u_Σ₁₃, uvw...)
