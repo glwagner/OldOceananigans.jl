@@ -22,6 +22,9 @@ const MolecularDiffusivity = ConstantIsotropicDiffusivity
 ConstantIsotropicDiffusivity(T; kwargs...) =
     typed_keyword_constructor(T, ConstantIsotropicDiffusivity; kwargs...)
 
+calculate_diffusivities!(diffusivities, grid, closure::ConstantIsotropicDiffusivity,
+                         args...) = nothing
+
 # These functions are used to specify Gradient and Value boundary conditions.
 @inline κ_ccc(i, j, k, grid, closure::ConstantIsotropicDiffusivity, args...) = closure.κ
 @inline ν_ccc(i, j, k, grid, closure::ConstantIsotropicDiffusivity, args...) = closure.ν
@@ -36,19 +39,19 @@ ConstantIsotropicDiffusivity(T; kwargs...) =
 )
 
 @inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, u, v, w, args...) = (
-      closure.ν / grid.Δx^2 * δx²_f2c2f(grid, u, i, j, k) 
+      closure.ν / grid.Δx^2 * δx²_f2c2f(grid, u, i, j, k)
     + closure.ν / grid.Δy^2 * δy²_f2e2f(grid, u, i, j, k)
     + closure.ν / grid.Δz^2 * δz²_f2e2f(grid, u, i, j, k)
 )
 
 @inline ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, u, v, w, args...) = (
-      closure.ν / grid.Δx^2 * δx²_f2e2f(grid, v, i, j, k) 
+      closure.ν / grid.Δx^2 * δx²_f2e2f(grid, v, i, j, k)
     + closure.ν / grid.Δy^2 * δy²_f2c2f(grid, v, i, j, k)
     + closure.ν / grid.Δz^2 * δz²_f2e2f(grid, v, i, j, k)
 )
 
 @inline ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure::ConstantIsotropicDiffusivity, u, v, w, args...) = (
-      closure.ν / grid.Δx^2 * δx²_f2e2f(grid, w, i, j, k) 
+      closure.ν / grid.Δx^2 * δx²_f2e2f(grid, w, i, j, k)
     + closure.ν / grid.Δy^2 * δy²_f2e2f(grid, w, i, j, k)
     + closure.ν / grid.Δz^2 * δz²_f2c2f(grid, w, i, j, k)
 )
@@ -63,7 +66,7 @@ ConstantIsotropicDiffusivity(T; kwargs...) =
 
 Returns a ConstantAnisotropicDiffusivity object with horizontal viscosity and
 diffusivity `νh` and `κh`, and vertical viscosity and diffusivity
-`νv` and `κv`.
+`νv` and `κv`
 """
 Base.@kwdef struct ConstantAnisotropicDiffusivity{T} <: TensorDiffusivity{T}
     νh :: T = 1e-6
@@ -74,6 +77,9 @@ end
 
 ConstantAnisotropicDiffusivity(T; kwargs...) =
     typed_keyword_constructor(T, ConstantAnisotropicDiffusivity; kwargs...)
+
+calculate_diffusivities!(diffusivities, grid, closure::ConstantAnisotropicDiffusivity,
+                         args...) = nothing
 
 @inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, u, v, w, args...) = (
       closure.νh * ∂x²_faa(i, j, k, grid, u)
