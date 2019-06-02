@@ -50,6 +50,8 @@ using
 
 using Oceananigans.Operators: incmod1, decmod1
 
+@hascuda using CUDAdrv, CUDAnative
+
 abstract type TurbulenceClosure{T} end
 abstract type IsotropicDiffusivity{T} <: TurbulenceClosure{T} end
 abstract type TensorDiffusivity{T} <: TurbulenceClosure{T} end
