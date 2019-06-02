@@ -21,7 +21,6 @@ mutable struct Model{A<:Architecture, G, VV, TT, PP, FF, BCS, TG, PS, SF, TC, TD
        diagnostics :: Array{Diagnostic, 1}      # Objects that calc diagnostics on-line during simulation.
 end
 
-
 """
     Model(; kwargs...)
 
@@ -126,3 +125,5 @@ struct Forcing{Tu,Tv,Tw,TT,TS}
 end
 
 Forcing(; Fu=nothing, Fv=nothing, Fw=nothing, FT=nothing, FS=nothing) = Forcing(Fu, Fv, Fw, FT, FS)
+
+time(m::Model) = m.clock.time

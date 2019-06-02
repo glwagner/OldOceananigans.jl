@@ -6,7 +6,8 @@ end
 
 PlanetaryConstants(T=Float64; Ω=1.0, f=0.0, g=1.0) = PlanetaryConstants{T}(Ω, f, g)
 
-function choose_f(Ω, f, lat)
+function Base.convert(::PlanetaryConstants{T2}, c::PlanetaryConstants{T1}) where {T1, T2}
+    return PlanetaryConstants{T2}(c.Ω, c.f, c.g)
 end
 
 function Earth(T=Float64; f=nothing, lat=nothing)

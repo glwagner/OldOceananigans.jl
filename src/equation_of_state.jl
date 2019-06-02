@@ -33,11 +33,16 @@ function LinearEquationOfState(T=Float64;
     LinearEquationOfState{T}(ρ₀, βT, βS, βp, T₀, S₀, p₀, cᵥ, αᵥ)
 end
 
+function Base.convert(::LinearEquationOfState{T2}, eos::LinearEquationOfState{T1}) where {T1, T2}
+    paramdict = Dict((p, convert(T2, getproperty(eos, p))) for p in propertynames(eos))
+    return LinearEquationOfState(T1; paramdict...)
+end
+
 """
     buoyancy(i, j, k, grid, eos, g, T, S)
 
-Calculate the buoyancy at grid point `i, j, k` associated with `eos`, 
+Calculate the buoyancy at grid point `i, j, k` associated with `eos`,
 gravitational acceleration `g`, temperature `T`,  and salinity `S`.
 """
-@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) = 
+@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) =
     grav * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )

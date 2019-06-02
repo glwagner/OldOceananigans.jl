@@ -97,6 +97,15 @@ include("constant_diffusivity_closures.jl")
 include("constant_smagorinsky.jl")
 include("anisotropic_minimum_dissipation.jl")
 
+basetype(::ConstantSmagorinsky) = ConstantSmagorinsky
+basetype(::ConstantIsotropicDiffusivity) = ConstantIsotropicDiffusivity
+basetype(::AnisotropicMinimumDissipation) = AnisotropicMinimumDissipation
+
+function Base.convert(::TurbulenceClosure{T2}, closure::TurbulenceClosure{T1}) where {T1, T2}
+    paramdict = Dict((p, convert(T2, getproperty(closure, p))) for p in propertynames(closure))
+    return basetype(closure)(T2; paramdict...)
+end
+
 # Packaged operators
 ν₁₁ = (ccc=ν₁₁_ccc, ffc=ν₁₁_ffc, fcf=ν₁₁_fcf, cff=ν₁₁_cff)
 ν₂₂ = (ccc=ν₂₂_ccc, ffc=ν₂₂_ffc, fcf=ν₂₂_fcf, cff=ν₂₂_cff)

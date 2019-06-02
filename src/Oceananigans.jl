@@ -75,6 +75,7 @@ export
     # Model helper structs, e.g. configuration, clock, etc.
     Clock,
     Model,
+    time,
 
     # Model output writers
     OutputWriter,
@@ -163,9 +164,13 @@ abstract type OutputWriter end
 abstract type Diagnostic end
 abstract type PoissonSolver end
 
-mutable struct Clock{T<:Number}
-  time::T
-  iteration::Int
+mutable struct Clock{T}
+       time :: T
+  iteration :: Int
+end
+
+function Base.convert(::Clock{T2}, c::Clock{T1}) where {T1, T2}
+    Clock{T2}(c.time, c.iteration)
 end
 
 include("utils.jl")

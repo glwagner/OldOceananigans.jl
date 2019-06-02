@@ -191,7 +191,6 @@ function calculate_boundary_source_terms!(model::Model{A}) where A <: Architectu
 
     apply_bcs!(arch, Val(coord), Bx, By, Bz, T_x_bcs.left, T_x_bcs.right, grid, T, GT, κ₃₃.ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
-
     apply_bcs!(arch, Val(coord), Bx, By, Bz, S_x_bcs.left, S_x_bcs.right, grid, S, GS, κ₃₃.ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
