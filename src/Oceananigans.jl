@@ -97,6 +97,7 @@ export
 
     # Turbulence closures
     TurbulenceClosures,
+    MolecularDiffusivity,
     ConstantIsotropicDiffusivity,
     ConstantAnisotropicDiffusivity,
     ConstantSmagorinsky,
