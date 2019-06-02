@@ -26,10 +26,11 @@ end
 
 Construct a basic `Oceananigans.jl` model.
 """
-function Model(float_type=Float64;
+function Model(;
     # Model resolution and domain size
              N,
              L,
+    float_type = Float64,
           grid = RegularCartesianGrid(float_type, N, L),
     # Model architecture
           arch = CPU(),
