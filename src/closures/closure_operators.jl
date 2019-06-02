@@ -22,7 +22,7 @@ end
     return @inbounds (ϕ[i, j, k] - ϕ[i, j⁻, k]) / grid.Δy
 end
 
-@inline function ∂z_aac(i, j, k, grid, w::AbstractArray) 
+@inline function ∂z_aac(i, j, k, grid, w::AbstractArray)
     if k == grid.Nz
         return @inbounds w[i, j, k] / grid.Δz # no penetration
     else
@@ -37,7 +37,7 @@ end
         return @inbounds (ϕ[i, j, k-1] - ϕ[i, j, k]) / grid.Δz
     end
 end
-    
+
 #
 # Differentiation and interpolation operators for functions
 #
@@ -468,10 +468,10 @@ in `x`, `y`, and `z` from `ccf` to `ffc`.
 """
     ν_Σᵢⱼ(i, j, k, grid, ν, Σᵢⱼ, closure, eos, g, u, v, w, T, S)
 
-Multiply the viscosity function 
+Multiply the viscosity function
 
     `ν(i, j, k, grid, closure, eos, g, u, v, w, T, S)`
-    
+
 with the strain tensor component function
 
     `Σᵢⱼ(i, j, k, grid, u, v, w)`
@@ -498,66 +498,66 @@ at index `i, j, k`.
 #
 
 # At fcc
-@inline ∂x_2ν_Σ₁₁(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂x_faa(i, j, k, grid, ν_Σᵢⱼ_ccc, diffusivities.ν_ccc, Σ₁₁, u, v, w)
+@inline ∂x_2ν_Σ₁₁(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂x_faa(i, j, k, grid, ν_Σᵢⱼ_ccc, diffusivities.νₑ, Σ₁₁, u, v, w)
 
-@inline ∂y_2ν_Σ₁₂(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ_ffc, diffusivities.ν_ccc, Σ₁₂, u, v, w)
+@inline ∂y_2ν_Σ₁₂(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ_ffc, diffusivities.νₑ, Σ₁₂, u, v, w)
 
-@inline ∂z_2ν_Σ₁₃(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ_fcf, diffusivities.ν_ccc, Σ₁₃, u, v, w)
+@inline ∂z_2ν_Σ₁₃(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ_fcf, diffusivities.νₑ, Σ₁₃, u, v, w)
 
 # At cfc
-@inline ∂x_2ν_Σ₂₁(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ_ffc, diffusivities.ν_ccc, Σ₂₁, u, v, w)
+@inline ∂x_2ν_Σ₂₁(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ_ffc, diffusivities.νₑ, Σ₂₁, u, v, w)
 
-@inline ∂y_2ν_Σ₂₂(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂y_afa(i, j, k, grid, ν_Σᵢⱼ_ccc, diffusivities.ν_ccc, Σ₂₂, u, v, w)
+@inline ∂y_2ν_Σ₂₂(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂y_afa(i, j, k, grid, ν_Σᵢⱼ_ccc, diffusivities.νₑ, Σ₂₂, u, v, w)
 
-@inline ∂z_2ν_Σ₂₃(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ_cff, diffusivities.ν_ccc, Σ₂₃, u, v, w)
+@inline ∂z_2ν_Σ₂₃(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ_cff, diffusivities.νₑ, Σ₂₃, u, v, w)
 
 # At ccf
-@inline ∂x_2ν_Σ₃₁(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ_fcf, diffusivities.ν_ccc, Σ₃₁, u, v, w)
+@inline ∂x_2ν_Σ₃₁(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ_fcf, diffusivities.νₑ, Σ₃₁, u, v, w)
 
-@inline ∂y_2ν_Σ₃₂(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ_cff, diffusivities.ν_ccc, Σ₃₂, u, v, w)
+@inline ∂y_2ν_Σ₃₂(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ_cff, diffusivities.νₑ, Σ₃₂, u, v, w)
 
-@inline ∂z_2ν_Σ₃₃(i, j, k, grid, closure, u, v, w, diffusivities) = 
-    2 * ∂z_aaf(i, j, k, grid, ν_Σᵢⱼ_ccc, diffusivities.ν_ccc, Σ₃₃, u, v, w)
+@inline ∂z_2ν_Σ₃₃(i, j, k, grid, closure, u, v, w, diffusivities) =
+    2 * ∂z_aaf(i, j, k, grid, ν_Σᵢⱼ_ccc, diffusivities.νₑ, Σ₃₃, u, v, w)
 
 #
 # Without precomputed diffusivities
 #
 
-@inline ∂x_2ν_Σ₁₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂x_2ν_Σ₁₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂x_faa(i, j, k, grid, ν_Σᵢⱼ, ν_ccc, Σ₁₁, closure, eos, grav, u, v, w, T, S)
 
-@inline ∂y_2ν_Σ₁₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂y_2ν_Σ₁₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ, ν_ffc, Σ₁₂, closure, eos, grav, u, v, w, T, S)
 
-@inline ∂z_2ν_Σ₁₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂z_2ν_Σ₁₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ, ν_fcf, Σ₁₃, closure, eos, grav, u, v, w, T, S)
 
 # At cfc
-@inline ∂x_2ν_Σ₂₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂x_2ν_Σ₂₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ, ν_ffc, Σ₂₁, closure, eos, grav, u, v, w, T, S)
 
-@inline ∂y_2ν_Σ₂₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂y_2ν_Σ₂₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂y_afa(i, j, k, grid, ν_Σᵢⱼ, ν_ccc, Σ₂₂, closure, eos, grav, u, v, w, T, S)
 
-@inline ∂z_2ν_Σ₂₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂z_2ν_Σ₂₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂z_aac(i, j, k, grid, ν_Σᵢⱼ, ν_cff, Σ₂₃, closure, eos, grav, u, v, w, T, S)
 
 # At ccf
-@inline ∂x_2ν_Σ₃₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂x_2ν_Σ₃₁(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂x_caa(i, j, k, grid, ν_Σᵢⱼ, ν_fcf, Σ₃₁, closure, eos, grav, u, v, w, T, S)
 
-@inline ∂y_2ν_Σ₃₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂y_2ν_Σ₃₂(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂y_aca(i, j, k, grid, ν_Σᵢⱼ, ν_cff, Σ₃₂, closure, eos, grav, u, v, w, T, S)
 
-@inline ∂z_2ν_Σ₃₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S) = 
+@inline ∂z_2ν_Σ₃₃(i, j, k, grid, closure, eos, grav, u, v, w, T, S) =
     2 * ∂z_aaf(i, j, k, grid, ν_Σᵢⱼ, ν_ccc, Σ₃₃, closure, eos, grav, u, v, w, T, S)
 
 """
@@ -620,9 +620,9 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
 `closure`, where `ϕ` is an array of scalar data located at cell centers.
 """
 @inline ∇_κ_∇ϕ(i, j, k, grid, ϕ, closure::IsotropicDiffusivity, diffusivities) = (
-      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, ϕ, diffusivities.κ_ccc, closure)
-    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, ϕ, diffusivities.κ_ccc, closure)
-    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.κ_ccc, closure)
+      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, ϕ, diffusivities.κₑ, closure)
+    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, ϕ, diffusivities.κₑ, closure)
+    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.κₑ, closure)
 )
 
 """
