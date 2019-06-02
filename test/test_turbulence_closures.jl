@@ -144,7 +144,7 @@ function test_anisotropic_diffusivity_fluxdiv(TF=Float64; νh=TF(0.3), κh=TF(0.
 end
 
 function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
-    closure = ConstantSmagorinsky(TF; Cs=0.0, ν_background=νᵇ, κ_background=κᵇ)
+    closure = ConstantSmagorinsky(TF; Cs=0.0, ν=νᵇ, κ=κᵇ)
     grid = RegularCartesianGrid(TF, (5, 5, 5), (5, 5, 5))
     eos = LinearEquationOfState(TF)
     g = TF(1)
@@ -153,7 +153,7 @@ function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
 
     return (
             ν₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
-            κ₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(κᵇ) 
+            κ₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(κᵇ)
         )
 end
 

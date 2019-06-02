@@ -111,7 +111,7 @@ function run_deep_convection_regression_tests()
         end
     end
 
-    
+
 
     model = Model(N=(Nx, Ny, Nz), L=(Lx, Ly, Lz), ν=4e-2, κ=4e-2,
         forcing = Forcing(nothing, nothing, nothing, cooling_disk, nothing)
@@ -157,7 +157,10 @@ function run_deep_convection_regression_tests()
 end
 
 Closure(::Val{:ConstantSmagorinsky}, ν, κ) =
-    ConstantSmagorinsky(Cs=-0.0, Cb=-0.0, Pr=1.0, ν_background=ν, κ_background=κ)
+    ConstantSmagorinsky(Cs=-0.0, Cb=-0.0, Pr=1.0, ν=ν, κ=κ)
+
+Closure(::Val{:AnisotropicMinimumDissipation}, ν, κ) =
+    AnisotropicMinimumDissipation(C=-0.0, ν=ν, κ=κ)
 
 Closure(::Val{:ConstantIsotropicDiffusivity}, ν, κ) =
     ConstantIsotropicDiffusivity(ν=ν, κ=κ)
