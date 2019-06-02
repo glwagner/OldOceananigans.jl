@@ -1,25 +1,24 @@
 struct AnisotropicMinimumDissipation{T} <: IsotropicDiffusivity{T}
-               C :: T
-    ν_background :: T
-    κ_background :: T
+    C :: T
+    ν :: T
+    κ :: T
 end
 
 """
-    AnisotropicMinimumDissipation(T=Float64; C=0.23, ν_background=1e-6,
-                                    κ_background=1e-7)
+    AnisotropicMinimumDissipation(T=Float64; C=0.33, ν=1e-6, κ=1e-7)
 
 Returns a `AnisotropicMinimumDissipation` closure object of type `T` with
 
-    * `C`            : Poincaré constant
-    * `ν_background` : background viscosity
-    * `κ_background` : background diffusivity
+    * `C` : Poincaré constant
+    * `ν` : 'molecular' background viscosity
+    * `κ` : 'molecular' background diffusivity
 """
 function AnisotropicMinimumDissipation(FT=Float64;
-                   C = 0.33,
-        ν_background = 1e-6,
-        κ_background = 1e-7
+        C = 0.33,
+        ν = 1e-6,
+        κ = 1e-7
     )
-    return AnisotropicMinimumDissipation{FT}(C, ν_background, κ_background)
+    return AnisotropicMinimumDissipation{FT}(C, ν, κ)
 end
 
 "Return the filter width for Anisotropic Minimum Dissipation on a Regular Cartesian grid."
@@ -33,10 +32,10 @@ const Δy_ccc = Δy
 const Δz_ccc = Δz
 
 function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::AnisotropicMinimumDissipation)
-     ν_ccc = zeros(arch, grid)
-    κT_ccc = zeros(arch, grid)
-    κS_ccc = zeros(arch, grid)
-    return (ν_ccc=ν_ccc, κT_ccc=κT_ccc, κS_ccc=κS_ccc)
+     νₑ = zeros(arch, grid)
+    κTₑ = zeros(arch, grid)
+    κSₑ = zeros(arch, grid)
+    return (νₑ=νₑ, κₑ=(T=κTₑ, S=κSₑ))
 end
 
 function ν_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation, ϕ,
@@ -48,7 +47,7 @@ function ν_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation,
 
     νdagger = -closure.C * (r - ζ) / q
 
-    return max(zero(FT), νdagger) + closure.ν_background
+    return max(zero(FT), νdagger) + closure.ν
 end
 
 function κ_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation,
@@ -59,7 +58,7 @@ function κ_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation,
 
     κdagger = - closure.C * n / d
 
-    return max(zero(FT), κdagger) + closure.κ_background
+    return max(zero(FT), κdagger) + closure.κ
 end
 
 #
@@ -230,9 +229,9 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
 `closure`, where `ϕ` is an array of scalar data located at cell centers.
 """
 @inline ∇_κ_∇T(i, j, k, grid, T, closure::AnisotropicMinimumDissipation, diffusivities) = (
-      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, T, diffusivities.κT_ccc, closure)
-    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, T, diffusivities.κT_ccc, closure)
-    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, T, diffusivities.κT_ccc, closure)
+      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, T, diffusivities.κₑ.T, closure)
+    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, T, diffusivities.κₑ.T, closure)
+    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, T, diffusivities.κₑ.T, closure)
 )
 
 """
@@ -242,9 +241,9 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ S)` for the turbulence
 `closure`, where `ϕ` is an array of scalar data located at cell centers.
 """
 @inline ∇_κ_∇S(i, j, k, grid, S, closure::AnisotropicMinimumDissipation, diffusivities) = (
-      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, S, diffusivities.κS_ccc, closure)
-    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, S, diffusivities.κS_ccc, closure)
-    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, S, diffusivities.κS_ccc, closure)
+      ∂x_caa(i, j, k, grid, κ_∂x_ϕ, S, diffusivities.κₑ.S, closure)
+    + ∂y_aca(i, j, k, grid, κ_∂y_ϕ, S, diffusivities.κₑ.S, closure)
+    + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, S, diffusivities.κₑ.S, closure)
 )
 
 function calculate_diffusivities!(diffusivities, grid, closure::AnisotropicMinimumDissipation,
@@ -253,13 +252,13 @@ function calculate_diffusivities!(diffusivities, grid, closure::AnisotropicMinim
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                @inbounds diffusivities.ν_ccc[i, j, k]  = ν_ccc(i, j, k, grid, closure, nothing,
+                @inbounds diffusivities.νₑ[i, j, k]  = ν_ccc(i, j, k, grid, closure, nothing,
                                                                 eos, grav, u, v, w, T, S)
 
-                @inbounds diffusivities.κT_ccc[i, j, k] = κ_ccc(i, j, k, grid, closure, T,
+                @inbounds diffusivities.κₑ.T[i, j, k] = κ_ccc(i, j, k, grid, closure, T,
                                                                 eos, grav, u, v, w, T, S)
 
-                @inbounds diffusivities.κS_ccc[i, j, k] = κ_ccc(i, j, k, grid, closure, S,
+                @inbounds diffusivities.κₑ.S[i, j, k] = κ_ccc(i, j, k, grid, closure, S,
                                                                 eos, grav, u, v, w, T, S)
             end
         end
