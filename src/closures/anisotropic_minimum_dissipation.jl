@@ -38,8 +38,8 @@ function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::AnisotropicMin
     return (νₑ=νₑ, κₑ=(T=κTₑ, S=κSₑ))
 end
 
-function ν_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation, ϕ,
-               eos, grav, u, v, w, T, S) where FT
+@inline function ν_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation, ϕ,
+                       eos, grav, u, v, w, T, S) where FT
 
     r = Δ²ₐ_uᵢₐ_uⱼₐ_Σᵢⱼ_ccc(i, j, k, grid, closure, u, v, w)
     q = tr_∇u_ccc(i, j, k, grid, u, v, w)
@@ -50,7 +50,7 @@ function ν_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation,
     return max(zero(FT), νdagger) + closure.ν
 end
 
-function κ_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation,
+@inline function κ_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation,
                ϕ, eos, grav, u, v, w, T, S) where FT
 
     n =  Δ²ⱼ_uᵢⱼ_ϕⱼ_ϕᵢ_ccc(i, j, k, grid, closure, u, v, w, ϕ)
@@ -66,34 +66,33 @@ end
 #
 
 # ccc
-∂x_u²(ijk...) = ∂x_u(ijk...)^2
-∂y_v²(ijk...) = ∂y_v(ijk...)^2
-∂z_w²(ijk...) = ∂z_w(ijk...)^2
+@inline ∂x_u²(ijk...) = ∂x_u(ijk...)^2
+@inline ∂y_v²(ijk...) = ∂y_v(ijk...)^2
+@inline ∂z_w²(ijk...) = ∂z_w(ijk...)^2
 
-∂x_u²_Σ₁₁(ijk...) = ∂x_u²(ijk...) * Σ₁₁(ijk...)
-∂y_v²_Σ₂₂(ijk...) = ∂y_v²(ijk...) * Σ₂₂(ijk...)
-∂z_w²_Σ₃₃(ijk...) = ∂y_v²(ijk...) * Σ₃₃(ijk...)
+@inline ∂x_u²_Σ₁₁(ijk...) = ∂x_u²(ijk...) * Σ₁₁(ijk...)
+@inline ∂y_v²_Σ₂₂(ijk...) = ∂y_v²(ijk...) * Σ₂₂(ijk...)
+@inline ∂z_w²_Σ₃₃(ijk...) = ∂y_v²(ijk...) * Σ₃₃(ijk...)
 
 # ffc
-∂x_v²(ijk...) = ∂x_v(ijk...)^2
-∂y_u²(ijk...) = ∂y_u(ijk...)^2
+@inline ∂x_v²(ijk...) = ∂x_v(ijk...)^2
+@inline ∂y_u²(ijk...) = ∂y_u(ijk...)^2
 
-∂x_v_Σ₁₂(ijk...) = ∂x_v(ijk...) * Σ₁₂(ijk...)
-∂y_u_Σ₁₂(ijk...) = ∂y_u(ijk...) * Σ₁₂(ijk...)
+@inline ∂x_v_Σ₁₂(ijk...) = ∂x_v(ijk...) * Σ₁₂(ijk...)
+@inline ∂y_u_Σ₁₂(ijk...) = ∂y_u(ijk...) * Σ₁₂(ijk...)
 
 # fcf
-∂z_u²(ijk...) = ∂z_u(ijk...)^2
-∂x_w²(ijk...) = ∂x_w(ijk...)^2
+@inline ∂z_u²(ijk...) = ∂z_u(ijk...)^2
+@inline ∂x_w²(ijk...) = ∂x_w(ijk...)^2
 
-∂x_w_Σ₁₃(ijk...) = ∂x_w(ijk...) * Σ₁₃(ijk...)
-∂z_u_Σ₁₃(ijk...) = ∂z_u(ijk...) * Σ₁₃(ijk...)
+@inline ∂x_w_Σ₁₃(ijk...) = ∂x_w(ijk...) * Σ₁₃(ijk...)
+@inline ∂z_u_Σ₁₃(ijk...) = ∂z_u(ijk...) * Σ₁₃(ijk...)
 
 # cff
-∂z_v²(ijk...) = ∂z_v(ijk...)^2
-∂y_w²(ijk...) = ∂y_w(ijk...)^2
-
-∂z_v_Σ₂₃(ijk...) = ∂z_v(ijk...) * Σ₂₃(ijk...)
-∂y_w_Σ₂₃(ijk...) = ∂y_w(ijk...) * Σ₂₃(ijk...)
+@inline ∂z_v²(ijk...) = ∂z_v(ijk...)^2
+@inline ∂y_w²(ijk...) = ∂y_w(ijk...)^2
+@inline ∂z_v_Σ₂₃(ijk...) = ∂z_v(ijk...) * Σ₂₃(ijk...)
+@inline ∂y_w_Σ₂₃(ijk...) = ∂y_w(ijk...) * Σ₂₃(ijk...)
 
 #
 # *** 30 terms ***
@@ -103,7 +102,7 @@ end
 # the heinous
 #
 
-function Δ²ₐ_uᵢₐ_uⱼₐ_Σᵢⱼ_ccc(i, j, k, grid, closure, u, v, w)
+@inline function Δ²ₐ_uᵢₐ_uⱼₐ_Σᵢⱼ_ccc(i, j, k, grid, closure, u, v, w)
     Δx = Δx_ccc(i, j, k, grid, closure)
     Δy = Δy_ccc(i, j, k, grid, closure)
     Δz = Δz_ccc(i, j, k, grid, closure)
@@ -149,7 +148,7 @@ end
 # trace(∇u) = uᵢⱼ uᵢⱼ
 #
 
-tr_∇u_ccc(i, j, k, grid, u, v, w) = (
+@inline tr_∇u_ccc(i, j, k, grid, u, v, w) = (
         # ccc
         ∂x_u²(i, j, k, grid, u, v, w)
       + ∂y_v²(i, j, k, grid, u, v, w)
@@ -168,7 +167,7 @@ tr_∇u_ccc(i, j, k, grid, u, v, w) = (
       + ▶yz_acc(i, j, k, grid, ∂z_v², u, v, w)
 )
 
-function Δ²ᵢ_wᵢ_bᵢ_ccc(i, j, k, grid, closure, eos, grav, w, T, S)
+@inline function Δ²ᵢ_wᵢ_bᵢ_ccc(i, j, k, grid, closure, eos, grav, w, T, S)
     Δx = Δx_ccc(i, j, k, grid, closure)
     Δy = Δy_ccc(i, j, k, grid, closure)
     Δz = Δz_ccc(i, j, k, grid, closure)
@@ -185,9 +184,9 @@ function Δ²ᵢ_wᵢ_bᵢ_ccc(i, j, k, grid, closure, eos, grav, w, T, S)
     return Δx²_wx_bx + Δy²_wy_by + Δz²_wz_bz
 end
 
-∂x_ϕ²(i, j, k, grid, ϕ) = ∂x_faa(i, j, k, grid, ϕ)^2
-∂y_ϕ²(i, j, k, grid, ϕ) = ∂y_afa(i, j, k, grid, ϕ)^2
-∂z_ϕ²(i, j, k, grid, ϕ) = ∂z_aaf(i, j, k, grid, ϕ)^2
+@inline ∂x_ϕ²(i, j, k, grid, ϕ) = ∂x_faa(i, j, k, grid, ϕ)^2
+@inline ∂y_ϕ²(i, j, k, grid, ϕ) = ∂y_afa(i, j, k, grid, ϕ)^2
+@inline ∂z_ϕ²(i, j, k, grid, ϕ) = ∂z_aaf(i, j, k, grid, ϕ)^2
 
 @inline function Δ²ⱼ_uᵢⱼ_ϕⱼ_ϕᵢ_ccc(i, j, k, grid, closure, ϕ, u, v, w)
     Δx = Δx_ccc(i, j, k, grid, closure)
