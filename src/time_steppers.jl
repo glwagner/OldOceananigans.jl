@@ -46,7 +46,7 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
       forcing = model.forcing
       closure = model.closure
     poisson_solver = model.poisson_solver
-     turbdiffs = model.turbdiffs
+     diffusivities = model.diffusivities
 
     bcs = model.bcs
       G = model.G
@@ -82,11 +82,11 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
         @launch device(arch) update_hydrostatic_pressure!(
             pr.pHY′.data, grid, constants, eos, tr.T.data, tr.S.data, threads=(Tx, Ty), blocks=(Bx, By))
 
-        @launch device(arch) threads=threads blocks=blocks calculate_diffusivities!(turbdiffs,
+        @launch device(arch) threads=threads blocks=blocks calculate_diffusivities!(diffusivities,
             grid, closure, eos, constants.g, uvw..., TS...)
 
         @launch device(arch) threads=threads blocks=blocks calculate_interior_source_terms!(
-            grid, constants, eos, closure, pr.pHY′.data, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
+            grid, constants, eos, closure, pr.pHY′.data, uvw..., TS..., Gⁿ..., diffusivities, forcing)
 
         calculate_boundary_source_terms!(model)
 
