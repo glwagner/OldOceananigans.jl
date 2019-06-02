@@ -145,67 +145,75 @@ end
 # trace(∇u) = uᵢⱼ uᵢⱼ
 #
 
-@inline tr_∇u_ccc(i, j, k, grid, u, v, w) = (
+@inline function tr_∇u_ccc(i, j, k, grid, uvw...)
+    ijk = (i, j, k, grid)
+
+    return (
         # ccc
-        ∂x_u²(i, j, k, grid, u, v, w)
-      + ∂y_v²(i, j, k, grid, u, v, w)
-      + ∂z_w²(i, j, k, grid, u, v, w)
+        ∂x_u²(ijk..., uvw...)
+      + ∂y_v²(ijk..., uvw...)
+      + ∂z_w²(ijk..., uvw...)
 
         # ffc
-      + ▶xy_cca(i, j, k, grid, ∂x_v², u, v, w)
-      + ▶xy_cca(i, j, k, grid, ∂y_u², u, v, w)
+      + ▶xy_cca(ijk..., ∂x_v², uvw...)
+      + ▶xy_cca(ijk..., ∂y_u², uvw...)
 
         # fcf
-      + ▶xz_cac(i, j, k, grid, ∂x_w², u, v, w)
-      + ▶xz_cac(i, j, k, grid, ∂z_u², u, v, w)
+      + ▶xz_cac(ijk..., ∂x_w², uvw...)
+      + ▶xz_cac(ijk..., ∂z_u², uvw...)
 
         # cff
-      + ▶yz_acc(i, j, k, grid, ∂y_w², u, v, w)
-      + ▶yz_acc(i, j, k, grid, ∂z_v², u, v, w)
-)
+      + ▶yz_acc(ijk..., ∂y_w², uvw...)
+      + ▶yz_acc(ijk..., ∂z_v², uvw...)
+    )
+end
 
 @inline function Δ²ᵢ_wᵢ_bᵢ_ccc(i, j, k, grid, closure, eos, grav, w, T, S)
-    Δx = Δx_ccc(i, j, k, grid, closure)
-    Δy = Δy_ccc(i, j, k, grid, closure)
-    Δz = Δz_ccc(i, j, k, grid, closure)
+    ijk = (i, j, k, grid)
 
-    Δx²_wx_bx = Δx^2 * (▶xz_cac(i, j, k, grid, ∂x_faa, w)
-                          * ▶x_caa(i, j, k, grid, ∂x_faa, buoyancy, eos, grav, T, S))
+    Δx = Δx_ccc(ijk..., closure)
+    Δy = Δy_ccc(ijk..., closure)
+    Δz = Δz_ccc(ijk..., closure)
 
-    Δy²_wy_by = Δy^2 * (▶yz_acc(i, j, k, grid, ∂y_afa, w)
-                          * ▶y_aca(i, j, k, grid, ∂y_afa, buoyancy, eos, grav, T, S))
+    Δx²_wx_bx = Δx^2 * (▶xz_cac(ijk..., ∂x_faa, w)
+                          * ▶x_caa(ijk..., ∂x_faa, buoyancy, eos, grav, T, S))
 
-    Δz²_wz_bz = Δz^2 * (∂z_aac(i, j, k, grid, w)
-                          * ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, grav, T, S))
+    Δy²_wy_by = Δy^2 * (▶yz_acc(ijk..., ∂y_afa, w)
+                          * ▶y_aca(ijk..., ∂y_afa, buoyancy, eos, grav, T, S))
+
+    Δz²_wz_bz = Δz^2 * (∂z_aac(ijk..., w)
+                          * ▶z_aac(ijk..., ∂z_aaf, buoyancy, eos, grav, T, S))
 
     return Δx²_wx_bx + Δy²_wy_by + Δz²_wz_bz
 end
 
-@inline ∂x_ϕ²(i, j, k, grid, ϕ) = ∂x_faa(i, j, k, grid, ϕ)^2
-@inline ∂y_ϕ²(i, j, k, grid, ϕ) = ∂y_afa(i, j, k, grid, ϕ)^2
-@inline ∂z_ϕ²(i, j, k, grid, ϕ) = ∂z_aaf(i, j, k, grid, ϕ)^2
+@inline ∂x_ϕ²(ijk...) = ∂x_faa(ijk...)^2
+@inline ∂y_ϕ²(ijk...) = ∂y_afa(ijk...)^2
+@inline ∂z_ϕ²(ijk...) = ∂z_aaf(ijk...)^2
 
 @inline function Δ²ⱼ_uᵢⱼ_ϕⱼ_ϕᵢ_ccc(i, j, k, grid, closure, ϕ, u, v, w)
-    Δx = Δx_ccc(i, j, k, grid, closure)
-    Δy = Δy_ccc(i, j, k, grid, closure)
-    Δz = Δz_ccc(i, j, k, grid, closure)
+    ijk = (i, j, k, grid)
+
+    Δx = Δx_ccc(ijk..., closure)
+    Δy = Δy_ccc(ijk..., closure)
+    Δz = Δz_ccc(ijk..., closure)
 
     Δx²_ϕx_ux = Δx^2 * (
-                 ∂x_caa(i, j, k, grid, u) * ▶x_caa(i, j, k, grid, ∂x_ϕ², ϕ)
-        + ▶xy_cca(i, j, k, grid, ∂x_v, v) * ▶x_caa(i, j, k, grid, ∂x_faa, ϕ) * ▶y_aca(i, j, k, grid, ∂y_afa, ϕ)
-        + ▶xz_cac(i, j, k, grid, ∂x_w, w) * ▶x_caa(i, j, k, grid, ∂x_faa, ϕ) * ▶z_aac(i, j, k, grid, ∂z_aaf, ϕ)
+                 ∂x_caa(ijk..., u) * ▶x_caa(ijk..., ∂x_ϕ², ϕ)
+        + ▶xy_cca(ijk..., ∂x_v, v) * ▶x_caa(ijk..., ∂x_faa, ϕ) * ▶y_aca(ijk..., ∂y_afa, ϕ)
+        + ▶xz_cac(ijk..., ∂x_w, w) * ▶x_caa(ijk..., ∂x_faa, ϕ) * ▶z_aac(ijk..., ∂z_aaf, ϕ)
     )
 
     Δy²_ϕy_uy = Δy^2 * (
-          ▶xy_cca(i, j, k, grid, ∂y_u, u) * ▶y_aca(i, j, k, grid, ∂y_afa, ϕ) * ▶x_caa(i, j, k, grid, ∂x_faa, ϕ)
-        +        ∂y_aca(i, j, k, grid, v) * ▶y_aca(i, j, k, grid, ∂y_ϕ², ϕ)
-        + ▶xz_cac(i, j, k, grid, ∂y_w, w) * ▶y_aca(i, j, k, grid, ∂y_afa, ϕ) * ▶z_aac(i, j, k, grid, ∂z_aaf, ϕ)
+          ▶xy_cca(ijk..., ∂y_u, u) * ▶y_aca(ijk..., ∂y_afa, ϕ) * ▶x_caa(ijk..., ∂x_faa, ϕ)
+        +        ∂y_aca(ijk..., v) * ▶y_aca(ijk..., ∂y_ϕ², ϕ)
+        + ▶xz_cac(ijk..., ∂y_w, w) * ▶y_aca(ijk..., ∂y_afa, ϕ) * ▶z_aac(ijk..., ∂z_aaf, ϕ)
     )
 
     Δz²_ϕz_uz = Δz^2 * (
-          ▶xz_cac(i, j, k, grid, ∂z_u, u) * ▶z_aac(i, j, k, grid, ∂z_aaf, ϕ) * ▶x_caa(i, j, k, grid, ∂x_faa, ϕ)
-        + ▶yz_acc(i, j, k, grid, ∂z_v, v) * ▶z_aac(i, j, k, grid, ∂z_aaf, ϕ) * ▶y_aca(i, j, k, grid, ∂y_afa, ϕ)
-        +        ∂z_aac(i, j, k, grid, w) * ▶z_aac(i, j, k, grid, ∂z_ϕ², ϕ)
+          ▶xz_cac(ijk..., ∂z_u, u) * ▶z_aac(ijk..., ∂z_aaf, ϕ) * ▶x_caa(ijk..., ∂x_faa, ϕ)
+        + ▶yz_acc(ijk..., ∂z_v, v) * ▶z_aac(ijk..., ∂z_aaf, ϕ) * ▶y_aca(ijk..., ∂y_afa, ϕ)
+        +        ∂z_aac(ijk..., w) * ▶z_aac(ijk..., ∂z_ϕ², ϕ)
     )
 
     return Δx²_ϕx_ux + Δy²_ϕy_uy + Δz²_ϕz_uz
