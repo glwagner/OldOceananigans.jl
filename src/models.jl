@@ -27,14 +27,13 @@ end
 
 Construct a basic `Oceananigans.jl` model.
 """
-function Model(;
+function Model(float_type=Float64;
     # Model resolution and domain size
              N,
              L,
-    # Model architecture and floating point precision
-          arch = CPU(),
-    float_type = Float64,
           grid = RegularCartesianGrid(float_type, N, L),
+    # Model architecture
+          arch = CPU(),
     # Isotropic transport coefficients (exposed to `Model` constructor for convenience)
              ν = 1.05e-6, κ = 1.43e-7,
        closure = MolecularDiffusivity(float_type, ν=ν, κ=κ),
