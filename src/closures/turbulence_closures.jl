@@ -9,10 +9,14 @@ export
     ConstantIsotropicDiffusivity,
     ConstantAnisotropicDiffusivity,
     ConstantSmagorinsky,
+    AnisotropicMinimumDissipation,
 
     TurbulentDiffusivities,
+    calculate_diffusivities!,
 
     ∇_κ_∇ϕ,
+    ∇_κ_∇T,
+    ∇_κ_∇S,
     ∂ⱼ_2ν_Σ₁ⱼ,
     ∂ⱼ_2ν_Σ₂ⱼ,
     ∂ⱼ_2ν_Σ₃ⱼ,
@@ -39,8 +43,9 @@ export
     ▶xy_fca, ▶xz_fac, ▶yz_afc,
     ▶xy_ffa, ▶xz_faf, ▶yz_aff
 
-using 
-    Oceananigans, 
+using
+    Oceananigans,
+    GPUifyLoops,
     Oceananigans.Operators
 
 using Oceananigans.Operators: incmod1, decmod1
@@ -48,6 +53,9 @@ using Oceananigans.Operators: incmod1, decmod1
 abstract type TurbulenceClosure{T} end
 abstract type IsotropicDiffusivity{T} <: TurbulenceClosure{T} end
 abstract type TensorDiffusivity{T} <: TurbulenceClosure{T} end
+
+@inline ∇_κ_∇T(args...) = ∇_κ_∇ϕ(args...)
+@inline ∇_κ_∇S(args...) = ∇_κ_∇ϕ(args...)
 
 # Tensor transport coefficient simplifications
 κ₁₁_ccc(i, j, k, grid, closure::IsotropicDiffusivity, args...) = κ_ccc(i, j, k, grid, closure, args...)
@@ -85,6 +93,7 @@ include("closure_operators.jl")
 include("velocity_gradients.jl")
 include("constant_diffusivity_closures.jl")
 include("constant_smagorinsky.jl")
+include("anisotropic_minimum_dissipation.jl")
 
 # Packaged operators
 ν₁₁ = (ccc=ν₁₁_ccc, ffc=ν₁₁_ffc, fcf=ν₁₁_fcf, cff=ν₁₁_cff)

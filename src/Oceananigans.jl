@@ -47,6 +47,7 @@ export
 
     # Equation of state
     LinearEquationOfState,
+    buoyancy,
 
     # Boundary conditions
     BoundaryConditions,
@@ -72,7 +73,6 @@ export
     solve_poisson_3d_ppn_gpu_planned!,
 
     # Model helper structs, e.g. configuration, clock, etc.
-    ModelConfiguration,
     Clock,
     Model,
 
@@ -99,7 +99,8 @@ export
     TurbulenceClosures,
     ConstantIsotropicDiffusivity,
     ConstantAnisotropicDiffusivity,
-    ConstantSmagorinsky
+    ConstantSmagorinsky,
+    AnisotropicMinimumDissipation
 
 # Standard library modules
 using

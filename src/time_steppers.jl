@@ -87,7 +87,7 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
 
         @launch device(arch) threads=threads blocks=blocks calculate_interior_source_terms!(
             grid, constants, eos, closure, pr.pHY′.data, uvw..., TS..., Gⁿ..., turbdiffs, forcing)
-                                                                                                   
+
         calculate_boundary_source_terms!(model)
 
         @launch device(arch) threads=threads blocks=blocks adams_bashforth_update_source_terms!(
@@ -224,12 +224,14 @@ apply_bcs!(arch, ::Val{:z}, Bx, By, Bz, args...) =
 "Apply a top and/or bottom boundary condition to variable ϕ. Note that this kernel
 MUST be launched with blocks=(Bx, By). If launched with blocks=(Bx, By, Bz), the
 boundary condition will be applied Bz times!"
-function apply_z_bcs!(top_bc, bottom_bc, grid, ϕ, Gϕ, κ, closure, eos, g, t, iteration, u, v, w, T, S)
+function apply_z_bcs!(top_bc, bottom_bc, grid, ϕ, Gϕ, κ, closure, eos,
+                      grav, t, iteration, u, v, w, T, S)
+
     @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
         @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
-               κ_top = κ(i, j, 1,       grid, closure, eos, g, u, v, w, T, S)
-            κ_bottom = κ(i, j, grid.Nz, grid, closure, eos, g, u, v, w, T, S)
+               κ_top = κ(i, j, 1,       grid, closure, ϕ, eos, grav, u, v, w, T, S)
+            κ_bottom = κ(i, j, grid.Nz, grid, closure, ϕ, eos, grav, u, v, w, T, S)
 
                apply_z_top_bc!(top_bc,    i, j, grid, ϕ, Gϕ, κ_top,    t, iteration, u, v, w, T, S)
             apply_z_bottom_bc!(bottom_bc, i, j, grid, ϕ, Gϕ, κ_bottom, t, iteration, u, v, w, T, S)

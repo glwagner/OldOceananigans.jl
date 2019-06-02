@@ -2,7 +2,7 @@ function ▶z_buoyancy_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
     if k == 1
         return buoyancy(i, j, 1, grid, eos, grav, T, S)
     else
-        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S) 
+        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S)
                         + buoyancy(i, j, k-1, grid, eos, grav, T, S))
     end
 end
@@ -11,7 +11,7 @@ function ▶z_buoyancy_w_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
     if k == 1
         return -zero(FT)
     else
-        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S) 
+        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S)
                         + buoyancy(i, j, k-1, grid, eos, grav, T, S))
     end
 end
@@ -76,9 +76,9 @@ function store_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, G
 end
 
 "Store previous value of the source term and calculate current source term."
-function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT}, 
-                                          eos::LinearEquationOfState{FT}, closure::TurbulenceClosure{FT}, 
-                                          pHY′::A, u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A, 
+function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT},
+                                          eos::LinearEquationOfState{FT}, closure::TurbulenceClosure{FT},
+                                          pHY′::A, u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A,
                                           GS::A, diffusivities, F) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
@@ -115,13 +115,13 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
 
                 # temperature equation
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
-                                         + ∇_κ_∇ϕ(i, j, k, grid, T, closure, diffusivities)
+                                         + ∇_κ_∇T(i, j, k, grid, T, closure, diffusivities)
                                          + F.T(grid, u, v, w, T, S, i, j, k)
                                         )
 
                 # salinity equation
                 @inbounds GS[i, j, k] = (-div_flux(grid, u, v, w, S, i, j, k)
-                                         + ∇_κ_∇ϕ(i, j, k, grid, S, closure, diffusivities)
+                                         + ∇_κ_∇S(i, j, k, grid, S, closure, diffusivities)
                                          + F.S(grid, u, v, w, T, S, i, j, k)
                                         )
             end
@@ -131,7 +131,7 @@ function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, consta
     @synchronize
 end
 
-function adams_bashforth_update_source_terms!(grid::Grid{FT}, Gu, Gv, Gw, GT, GS, 
+function adams_bashforth_update_source_terms!(grid::Grid{FT}, Gu, Gv, Gw, GT, GS,
                                               Gpu, Gpv, Gpw, GpT, GpS, χ) where FT
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
@@ -198,9 +198,9 @@ function idct_permute!(grid, ϕ, pNHS)
     @synchronize
 end
 
-function update_velocities_and_tracers!(grid, u, v, w, T, S, pNHS, Gu, Gv, Gw, 
+function update_velocities_and_tracers!(grid, u, v, w, T, S, pNHS, Gu, Gv, Gw,
                                         GT, GS, Gpu, Gpv, Gpw, GpT, GpS, Δt)
-                                        
+
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -231,15 +231,3 @@ end
 
 # Fallback
 calculate_diffusivities!(args...) = nothing
-
-"""Store previous source terms before updating them."""
-function calculate_diffusivities!(diffusivities, grid, closure::ConstantSmagorinsky, eos, grav, u, v, w, T, S) 
-    @loop for k in (1:grid.Nz; blockIdx().z)
-        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
-            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                @inbounds diffusivities.ν_ccc[i, j, k] = ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S)
-            end
-        end
-    end
-    @synchronize
-end

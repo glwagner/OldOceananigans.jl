@@ -31,8 +31,7 @@ ConstantSmagorinsky(T; kwargs...) =
 
 function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::ConstantSmagorinsky)
     ν_ccc = zeros(arch, grid)
-    #κ_ccc = zeros(arch, grid)
-    return (ν_ccc=ν_ccc, ) #κ_ccc=κ_ccc)
+    return (ν_ccc=ν_ccc, )
 end
 
 "Return the double dot product of strain at `ccc`."
@@ -54,16 +53,16 @@ const Δ_cff = Δ
 """
     buoyancy(i, j, k, grid, eos, g, T, S)
 
-Calculate the buoyancy at grid point `i, j, k` associated with `eos`, 
+Calculate the buoyancy at grid point `i, j, k` associated with `eos`,
 gravitational acceleration `g`, temperature `T`,  and salinity `S`.
 """
-@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) = 
+@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) =
     grav * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )
 
 """
     stability(N², Σ², Pr, Cb)
 
-Return the stability function 
+Return the stability function
 
 ``1 - Cb N^2 / (Pr Σ^2)``
 
@@ -76,22 +75,22 @@ when ``N^2 > 0``, and 1 otherwise.
     νₑ(ς, Cs, Δ, Σ²)
 
 Return the eddy viscosity for constant Smagorinsky
-given the stability `ς`, model constant `Cs`, 
+given the stability `ς`, model constant `Cs`,
 filter with `Δ`, and strain tensor dot product `Σ²`.
 """
 @inline νₑ(ς, Cs, Δ, Σ²) = ς * (Cs*Δ)^2 * sqrt(2Σ²)
 
-@inline function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
+@inline function ν_ccc(i, j, k, grid, clo::ConstantSmagorinsky, ϕ, eos, grav, u, v, w, T, S)
     Σ² = ΣᵢⱼΣᵢⱼ_ccc(i, j, k, grid, u, v, w)
-    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, g, T, S)
+    N² = ▶z_aac(i, j, k, grid, ∂z_aaf, buoyancy, eos, grav, T, S)
      Δ = Δ_ccc(i, j, k, grid, clo)
      ς = stability(N², Σ², clo.Pr, clo.Cb)
 
     return νₑ(ς, clo.Cs, Δ, Σ²) + clo.ν_background
 end
 
-@inline function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, eos, g, u, v, w, T, S)
-    νₑ = ν_ccc(i, j, k, grid, clo, eos, g, u, v, w, T, S)
+@inline function κ_ccc(i, j, k, grid, clo::ConstantSmagorinsky, ϕ, eos, grav, u, v, w, T, S)
+    νₑ = ν_ccc(i, j, k, grid, clo, ϕ, eos, grav, u, v, w, T, S)
     return (νₑ - clo.ν_background) / clo.Pr + clo.κ_background
 end
 
@@ -149,6 +148,7 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
     + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.ν_ccc, closure)
 )
 
+#=
 """
     ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
 
@@ -193,3 +193,15 @@ at the location `ccf`.
     + ∂y_2ν_Σ₃₂(i, j, k, grid, closure, u, v, w, diffusivities)
     + ∂z_2ν_Σ₃₃(i, j, k, grid, closure, u, v, w, diffusivities)
 )
+=#
+
+function calculate_diffusivities!(diffusivities, grid, closure::ConstantSmagorinsky, eos, grav, u, v, w, T, S)
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                @inbounds diffusivities.ν_ccc[i, j, k] = ν_ccc(i, j, k, grid, closure, eos, grav, u, v, w, T, S)
+            end
+        end
+    end
+    @synchronize
+end
