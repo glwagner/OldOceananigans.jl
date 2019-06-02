@@ -16,7 +16,7 @@ mutable struct Model{A<:Architecture, G, VV, TT, PP, FF, BCS, TG, PS, SF, TC, TD
                 Gp :: TG                        # RHS at previous time-step (for Adams-Bashforth time integration)
     poisson_solver :: PS                        # ::PoissonSolver or ::PoissonSolverGPU
        stepper_tmp :: SF                        # Temporary fields used for the Poisson solver.
-         turbdiffs :: TD
+     diffusivities :: TD
     output_writers :: Array{OutputWriter, 1}    # Objects that write data to disk.
        diagnostics :: Array{Diagnostic, 1}      # Objects that calc diagnostics on-line during simulation.
 end
@@ -36,9 +36,8 @@ function Model(;
     float_type = Float64,
           grid = RegularCartesianGrid(float_type, N, L),
     # Isotropic transport coefficients (exposed to `Model` constructor for convenience)
-             ν = 1.05e-6,
-             κ = 1.43e-7,
-       closure = ConstantIsotropicDiffusivity(float_type, ν=ν, κ=κ),
+             ν = 1.05e-6, κ = 1.43e-7,
+       closure = MolecularDiffusivity(float_type, ν=ν, κ=κ),
     # Fluid and physical parameters
      constants = Earth(float_type),
            eos = LinearEquationOfState(float_type),
@@ -54,13 +53,13 @@ function Model(;
     arch == GPU() && !HAVE_CUDA && throw(ArgumentError("Cannot create a GPU model. No CUDA-enabled GPU was detected!"))
 
     # Initialize fields, including source terms and temporary variables.
-      velocities = VelocityFields(arch, grid)
-         tracers = TracerFields(arch, grid)
-       pressures = PressureFields(arch, grid)
-               G = SourceTerms(arch, grid)
-              Gp = SourceTerms(arch, grid)
-     stepper_tmp = StepperTemporaryFields(arch, grid)
-       turbdiffs = TurbulentDiffusivities(arch, grid, closure)
+       velocities = VelocityFields(arch, grid)
+          tracers = TracerFields(arch, grid)
+        pressures = PressureFields(arch, grid)
+                G = SourceTerms(arch, grid)
+               Gp = SourceTerms(arch, grid)
+      stepper_tmp = StepperTemporaryFields(arch, grid)
+    diffusivities = TurbulentDiffusivities(arch, grid, closure)
 
     # Initialize Poisson solver.
     poisson_solver = PoissonSolver(arch, grid)
@@ -72,7 +71,7 @@ function Model(;
 
     Model(arch, grid, clock, eos, constants,
           velocities, tracers, pressures, forcing, closure, bcs,
-          G, Gp, poisson_solver, stepper_tmp, turbdiffs, output_writers, diagnostics)
+          G, Gp, poisson_solver, stepper_tmp, diffusivities, output_writers, diagnostics)
 end
 
 arch(model::Model{A}) where A <: Architecture = A
@@ -92,7 +91,7 @@ function initialize_with_defaults!(eos, tracers, sets...)
             fld.data .= 0 # promotes to eltype of fld.data
         end
     end
-    
+
     return nothing
 end
 
