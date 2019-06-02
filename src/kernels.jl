@@ -228,6 +228,3 @@ function compute_w_from_continuity!(grid, u, v, w)
 
     @synchronize
 end
-
-# Fallback
-calculate_diffusivities!(args...) = nothing
