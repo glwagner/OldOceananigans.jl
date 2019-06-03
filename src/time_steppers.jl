@@ -80,11 +80,11 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
         model.clock.iteration += 1
 
         for diagnostic in model.diagnostics
-            (clock.iteration % diagnostic.diagnostic_frequency) == 0 && run_diagnostic(model, diagnostic)
+            (model.clock.iteration % diagnostic.diagnostic_frequency) == 0 && run_diagnostic(model, diagnostic)
         end
 
         for output_writer in model.output_writers
-            (clock.iteration % output_writer.output_frequency) == 0 && write_output(model, output_writer)
+            (model.clock.iteration % output_writer.output_frequency) == 0 && write_output(model, output_writer)
         end
     end
 
