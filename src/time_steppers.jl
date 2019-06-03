@@ -62,7 +62,15 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
         # Calc the right-hand-side of our PDE and store in Gⁿ:
         @launch dev(arch) threads=Txy blocks=Bxy update_hydrostatic_pressure!(pH, grid, constants, eos, ϕ...)
         @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, constants.g, U..., ϕ...)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_interior_source_terms!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ..., diffusivities, forcing)
+
+        #@launch dev(arch) threads=Txy blocks=Bxyz calc_interior_source_terms!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ..., diffusivities, forcing)
+
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[1], diffusivities, forcing)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[2], diffusivities, forcing)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[3], diffusivities, forcing)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[4], diffusivities, forcing)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_S_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[5], diffusivities, forcing)
+
         calc_boundary_source_terms!(model)
 
         # Use Gⁿ and G⁻ to perform the first AB-2 substep, obtaining u⋆:

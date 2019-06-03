@@ -20,7 +20,6 @@ end
 
 """
     update_hydrostatic_pressure!(ph, grid, constants, eos, T, S)
-
 Calculate the perbutation hydrostatic pressure `ph` from the buoyancy field
 associated with temperature `T`, salinity `S`, gravitational constant
 `constants.g`, and equation of state `eos`.
@@ -81,18 +80,15 @@ function calc_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::
                                           pHY′::A, u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A,
                                           GS::A, diffusivities, F) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
-    Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
-    Δx, Δy, Δz = grid.Δx, grid.Δy, grid.Δz
-
     grav = constants.g
-    fCor = constants.f
+    fcoriolis = constants.f
 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
                 # u-momentum equation
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
-                                            + fv(grid, v, fCor, i, j, k)
+                                            + fv(grid, v, fcoriolis, i, j, k)
                                             - δx_c2f(grid, pHY′, i, j, k) / Δx
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.u(grid, u, v, w, T, S, i, j, k)
@@ -100,7 +96,7 @@ function calc_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::
 
                 # v-momentum equation
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
-                                            - fu(grid, u, fCor, i, j, k)
+                                            - fu(grid, u, fcoriolis, i, j, k)
                                             - δy_c2f(grid, pHY′, i, j, k) / Δy
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.v(grid, u, v, w, T, S, i, j, k)
@@ -108,7 +104,7 @@ function calc_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::
 
                 # w-momentum equation
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
-                #                         + ▶z_buoyancy_aaf(i, j, k, grid, eos, grav, T, S)
+                                         # + ▶z_buoyancy_aaf(i, j, k, grid, eos, grav, T, S)
                                          + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                          + F.w(grid, u, v, w, T, S, i, j, k)
                                         )
@@ -130,6 +126,119 @@ function calc_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::
 
     @synchronize
 end
+
+"Store previous value of the source term and calc current source term."
+function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F)
+    grav = constants.g
+    fcoriolis = constants.f
+
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                # u-momentum equation
+                @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
+                                            + fv(grid, v, fcoriolis, i, j, k)
+                                            - δx_c2f(grid, pHY′, i, j, k) / Δx
+                                            + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+                                            + F.u(grid, u, v, w, T, S, i, j, k)
+                                        )
+            end
+        end
+    end
+
+    @synchronize
+end
+
+
+"Store previous value of the source term and calc current source term."
+function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F)
+    grav = constants.g
+    fcoriolis = constants.f
+
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                # v-momentum equation
+                @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
+                                            - fu(grid, u, fcoriolis, i, j, k)
+                                            - δy_c2f(grid, pHY′, i, j, k) / Δy
+                                            + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+                                            + F.v(grid, u, v, w, T, S, i, j, k)
+                                        )
+            end
+        end
+    end
+
+    @synchronize
+end
+
+
+"Store previous value of the source term and calc current source term."
+function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F)
+    grav = constants.g
+    fcoriolis = constants.f
+
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                # w-momentum equation
+                @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
+                                         # + ▶z_buoyancy_aaf(i, j, k, grid, eos, grav, T, S)
+                                         + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
+                                         + F.w(grid, u, v, w, T, S, i, j, k)
+                                        )
+            end
+        end
+    end
+
+    @synchronize
+end
+
+"Store previous value of the source term and calc current source term."
+function calc_T_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, GT, diffusivities, F)
+    grav = constants.g
+    fcoriolis = constants.f
+
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+
+                # temperature equation
+                @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
+                                         + ∇_κ_∇T(i, j, k, grid, T, closure, diffusivities)
+                                         + F.T(grid, u, v, w, T, S, i, j, k)
+                                        )
+            end
+        end
+    end
+
+    @synchronize
+end
+
+
+"Store previous value of the source term and calc current source term."
+function calc_S_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, GS, diffusivities, F)
+    grav = constants.g
+    fcoriolis = constants.f
+
+    @loop for k in (1:grid.Nz; blockIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                # salinity equation
+                @inbounds GS[i, j, k] = (-div_flux(grid, u, v, w, S, i, j, k)
+                                         + ∇_κ_∇S(i, j, k, grid, S, closure, diffusivities)
+                                         + F.S(grid, u, v, w, T, S, i, j, k)
+                                        )
+            end
+        end
+    end
+
+    @synchronize
+end
+
+
+
+
 
 function adams_bashforth_update_source_terms!(grid::Grid{FT}, Gu, Gv, Gw, GT, GS,
                                               Gpu, Gpv, Gpw, GpT, GpS, χ) where FT
