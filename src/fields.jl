@@ -111,7 +111,12 @@ FaceFieldZ(arch, grid) = FaceFieldZ(zeros(arch, grid), grid)
 
 @inline data(f::Field) = view(f.data, 1:f.grid.Nx, 1:f.grid.Ny, 1:f.grid.Nz)
 
-show(io::IO, f::Field) = show(io, f.data)
+@inline parentdata(f::Field) = view(f.data.parent, f.grid.Hx+1:f.grid.Nx+f.grid.Hx,
+                                                   f.grid.Hy+1:f.grid.Ny+f.grid.Hy,
+                                                   f.grid.Hz+1:f.grid.Nz+f.grid.Hz
+                                    )
+
+show(io::IO, f::Field) = show(io, f.data.parent)
 
 iterate(f::Field, state=1) = iterate(f.data, state)
 

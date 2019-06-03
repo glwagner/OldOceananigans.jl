@@ -33,6 +33,7 @@ export
     FaceFieldZ,
     EdgeField,
     data,
+    parentdata,
     set!,
 
     # FieldSets (collections of related fields)
