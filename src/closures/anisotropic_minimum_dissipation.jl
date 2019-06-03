@@ -250,7 +250,7 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ S)` for the turbulence
     + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, S, diffusivities.κₑ.S, closure)
 )
 
-function calculate_diffusivities!(diffusivities, grid, closure::AnisotropicMinimumDissipation,
+function calc_diffusivities!(diffusivities, grid, closure::AnisotropicMinimumDissipation,
                                   eos, grav, u, v, w, T, S)
 
     @loop for k in (1:grid.Nz; blockIdx().z)

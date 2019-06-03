@@ -147,7 +147,7 @@ Return the diffusive flux divergence `∇ ⋅ (κ ∇ ϕ)` for the turbulence
     + ∂z_aac(i, j, k, grid, κ_∂z_ϕ, ϕ, diffusivities.νₑ, closure)
 )
 
-function calculate_diffusivities!(diffusivities, grid, closure::ConstantSmagorinsky,
+function calc_diffusivities!(diffusivities, grid, closure::ConstantSmagorinsky,
                                   eos, grav, u, v, w, T, S)
 
     @loop for k in (1:grid.Nz; blockIdx().z)

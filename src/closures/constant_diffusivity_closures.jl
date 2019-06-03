@@ -22,7 +22,7 @@ const MolecularDiffusivity = ConstantIsotropicDiffusivity
 ConstantIsotropicDiffusivity(T; kwargs...) =
     typed_keyword_constructor(T, ConstantIsotropicDiffusivity; kwargs...)
 
-calculate_diffusivities!(diffusivities, grid, closure::ConstantIsotropicDiffusivity,
+calc_diffusivities!(diffusivities, grid, closure::ConstantIsotropicDiffusivity,
                          args...) = nothing
 
 # These functions are used to specify Gradient and Value boundary conditions.
@@ -78,7 +78,7 @@ end
 ConstantAnisotropicDiffusivity(T; kwargs...) =
     typed_keyword_constructor(T, ConstantAnisotropicDiffusivity; kwargs...)
 
-calculate_diffusivities!(diffusivities, grid, closure::ConstantAnisotropicDiffusivity,
+calc_diffusivities!(diffusivities, grid, closure::ConstantAnisotropicDiffusivity,
                          args...) = nothing
 
 @inline ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure::ConstantAnisotropicDiffusivity, u, v, w, args...) = (

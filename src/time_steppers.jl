@@ -9,6 +9,11 @@ const Ty = 16 # CUDA threads per y-block
 
 include("kernels.jl")
 
+dev(arch) = device(arch)
+
+@inline data_tuple(obj, flds=propertynames(obj)) =
+    Tuple(getproperty(getproperty(obj, fld), :data) for fld in flds)
+
 """
     time_step!(model, Nt, Δt)
 
@@ -16,99 +21,67 @@ Step forward `model` `Nt` time steps using a second-order Adams-Bashforth
 method with step size `Δt`.
 """
 function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
-    clock = model.clock
-    model_start_time = clock.time
-    model_end_time = model_start_time + Nt*Δt
 
-    if clock.iteration == 0
-        for output_writer in model.output_writers
-            write_output(model, output_writer)
-        end
-        for diagnostic in model.diagnostics
-            run_diagnostic(model, diagnostic)
-        end
+    if model.clock.iteration == 0
+        [ write_output(model, output_writer) for output_writer in model.output_writers ]
+        [ run_diagnostic(model, diagnostic) for diagnostic in model.diagnostics ]
     end
 
-    arch = A()
-
-    Nx, Ny, Nz = model.grid.Nx, model.grid.Ny, model.grid.Nz
-    Lx, Ly, Lz = model.grid.Lx, model.grid.Ly, model.grid.Lz
-    Δx, Δy, Δz = model.grid.Δx, model.grid.Δy, model.grid.Δz
-
     # Unpack model fields
-         grid = model.grid
-        clock = model.clock
-          eos = model.eos
-    constants = model.constants
-            U = model.velocities
-           tr = model.tracers
-           pr = model.pressures
-      forcing = model.forcing
-      closure = model.closure
-    poisson_solver = model.poisson_solver
+              arch = model.arch
+              grid = model.grid
+               eos = model.eos
+         constants = model.constants
+           forcing = model.forcing
+           closure = model.closure
      diffusivities = model.diffusivities
 
-    bcs = model.bcs
-      G = model.G
-     Gp = model.Gp
-
     # We can use the same array for the right-hand-side RHS and the solution ϕ.
-    RHS, ϕ = poisson_solver.storage, poisson_solver.storage
+    RHS, ϕ = model.poisson_solver.storage, model.poisson_solver.storage
+     U = data_tuple(model.velocities)
+     ϕ = data_tuple(model.tracers)
+    GU = data_tuple(model.G, (:Gu, :Gv, :Gw))
+    pH, pN = data_tuple(model.pressures)
+    Gⁿ = data_tuple(model.G)
+    G⁻ = data_tuple(model.Gp)
 
-    gΔz = model.constants.g * model.grid.Δz
-    fCor = model.constants.f
-
-    uvw = U.u.data, U.v.data, U.w.data
-    TS = tr.T.data, tr.S.data
-    Guvw = G.Gu.data, G.Gv.data, G.Gw.data
-
-    # Source terms at current (Gⁿ) and previous (G⁻) time steps.
-    Gⁿ = G.Gu.data, G.Gv.data, G.Gw.data, G.GT.data, G.GS.data
-    G⁻ = Gp.Gu.data, Gp.Gv.data, Gp.Gw.data, Gp.GT.data, Gp.GS.data
-
-    Bx, By, Bz = floor(Int, Nx/Tx), floor(Int, Ny/Ty), Nz  # Blocks in grid
-
-    tb = (threads=(Tx, Ty), blocks=(Bx, By, Bz))
     FT = eltype(grid)
 
-    threads = (Tx, Ty)
-    blocks = (Bx, By, Bz)
+     Txy = (Tx, Ty)
+    Bxyz = (floor(Int, model.grid.Nx/Txy[1]), floor(Int, model.grid.Ny/Txy[2]), model.grid.Nz)
+     Bxy = Bxyz[1:2]
 
     for n in 1:Nt
-        χ = ifelse(model.clock.iteration == 0, FT(-0.5), FT(0.125)) # Adams-Bashforth (AB2) parameter.
 
-        @launch device(arch) threads=threads blocks=blocks store_previous_source_terms!(grid, Gⁿ..., G⁻...)
+        # Adams-Bashforth (AB2) parameter.
+        χ = ifelse(model.clock.iteration == 0, FT(-0.5), FT(0.125))
 
-        @launch device(arch) update_hydrostatic_pressure!(
-            pr.pHY′.data, grid, constants, eos, tr.T.data, tr.S.data, threads=(Tx, Ty), blocks=(Bx, By))
+        # AB-2 preparation (could be done either before or after time-step):
+        @launch dev(arch) threads=Txy blocks=Bxyz update_previous_source_terms!(grid, Gⁿ..., G⁻...)
 
-        @launch device(arch) threads=threads blocks=blocks calculate_diffusivities!(diffusivities,
-            grid, closure, eos, constants.g, uvw..., TS...)
+        # Calc the right-hand-side of our PDE and store in Gⁿ:
+        @launch dev(arch) threads=Txy blocks=Bxy update_hydrostatic_pressure!(pH, grid, constants, eos, ϕ...)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, constants.g, U..., ϕ...)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_interior_source_terms!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ..., diffusivities, forcing)
+        calc_boundary_source_terms!(model)
 
-        @launch device(arch) threads=threads blocks=blocks calculate_interior_source_terms!(
-            grid, constants, eos, closure, pr.pHY′.data, uvw..., TS..., Gⁿ..., diffusivities, forcing)
+        # Use Gⁿ and G⁻ to perform the first AB-2 substep, obtaining u⋆:
+        @launch dev(arch) threads=Txy blocks=Bxyz adams_bashforth_update_source_terms!(grid, Gⁿ..., G⁻..., χ)
 
-        calculate_boundary_source_terms!(model)
-
-        @launch device(arch) threads=threads blocks=blocks adams_bashforth_update_source_terms!(
-            grid, Gⁿ..., G⁻..., χ)
-
-        @launch device(arch) threads=threads blocks=blocks calculate_poisson_right_hand_side!(
-            arch, grid, Δt, uvw..., Guvw..., RHS)
-
+        # Calculate the pressure correction based on the divergence of u⋆:
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_poisson_right_hand_side!(arch, grid, Δt, U..., GU..., RHS)
         solve_for_pressure!(arch, model)
 
-        @launch device(arch) threads=threads blocks=blocks update_velocities_and_tracers!(
-            grid, uvw..., TS..., pr.pNHS.data, Gⁿ..., G⁻..., Δt)
+        # Use the pressure correction to complete the second AB-2 substep, obtaining uⁿ⁺¹:
+        @launch device(arch) threads=Txy blocks=Bxyz update_velocities_and_tracers!(grid, U..., ϕ..., pN, Gⁿ..., G⁻..., Δt)
+        @launch device(arch) threads=Txy blocks=Bxy compute_w_from_continuity!(grid, U...)
 
-        @launch device(arch) threads=threads blocks=(Bx, By) compute_w_from_continuity!(grid, uvw...)
+        model.clock.time += Δt
+        model.clock.iteration += 1
 
-        clock.time += Δt
-        clock.iteration += 1
-
-        #for diagnostic in model.diagnostics
-        #    (clock.iteration % diagnostic.diagnostic_frequency) == 0 && run_diagnostic(model, diagnostic)
-        #end
+        for diagnostic in model.diagnostics
+            (clock.iteration % diagnostic.diagnostic_frequency) == 0 && run_diagnostic(model, diagnostic)
+        end
 
         for output_writer in model.output_writers
             (clock.iteration % output_writer.output_frequency) == 0 && write_output(model, output_writer)
@@ -144,7 +117,7 @@ end
 #
 
 "Apply boundary conditions by modifying the source term G."
-function calculate_boundary_source_terms!(model::Model{A}) where A <: Architecture
+function calc_boundary_source_terms!(model::Model{A}) where A <: Architecture
     arch = A()
 
     Nx, Ny, Nz = model.grid.Nx, model.grid.Ny, model.grid.Nz
@@ -157,12 +130,12 @@ function calculate_boundary_source_terms!(model::Model{A}) where A <: Architectu
     closure = model.closure
     bcs = model.bcs
     U = model.velocities
-    tr = model.tracers
+    ϕ = model.tracers
     G = model.G
 
     grav = model.constants.g
     t, iteration = clock.time, clock.iteration
-    u, v, w, T, S = U.u.data, U.v.data, U.w.data, tr.T.data, tr.S.data
+    u, v, w, T, S = U.u.data, U.v.data, U.w.data, ϕ.T.data, ϕ.S.data
     Gu, Gv, Gw, GT, GS = G.Gu.data, G.Gv.data, G.Gw.data, G.GT.data, G.GS.data
 
     Bx, By, Bz = floor(Int, Nx/Tx), floor(Int, Ny/Ty), Nz  # Blocks in grid

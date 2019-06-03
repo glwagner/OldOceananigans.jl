@@ -12,7 +12,7 @@ export
     AnisotropicMinimumDissipation,
 
     TurbulentDiffusivities,
-    calculate_diffusivities!,
+    calc_diffusivities!,
 
     ∇_κ_∇ϕ,
     ∇_κ_∇T,

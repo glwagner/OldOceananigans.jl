@@ -60,7 +60,7 @@ function update_hydrostatic_pressure!(pHY′, grid::Grid{FT}, constants, eos, T,
 end
 
 """Store previous source terms before updating them."""
-function store_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, GpT, GpS)
+function update_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, GpT, GpS)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -75,8 +75,8 @@ function store_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, G
     @synchronize
 end
 
-"Store previous value of the source term and calculate current source term."
-function calculate_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT},
+"Store previous value of the source term and calc current source term."
+function calc_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::PlanetaryConstants{FT},
                                           eos::LinearEquationOfState{FT}, closure::TurbulenceClosure{FT},
                                           pHY′::A, u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A,
                                           GS::A, diffusivities, F) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
@@ -147,8 +147,8 @@ function adams_bashforth_update_source_terms!(grid::Grid{FT}, Gu, Gv, Gw, GT, GS
     @synchronize
 end
 
-"Store previous value of the source term and calculate current source term."
-function calculate_poisson_right_hand_side!(::CPU, grid, Δt, u, v, w, Gu, Gv, Gw, RHS)
+"Store previous value of the source term and calc current source term."
+function calc_poisson_right_hand_side!(::CPU, grid, Δt, u, v, w, Gu, Gv, Gw, RHS)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -161,7 +161,7 @@ function calculate_poisson_right_hand_side!(::CPU, grid, Δt, u, v, w, Gu, Gv, G
     @synchronize
 end
 
-function calculate_poisson_right_hand_side!(::GPU, grid, Δt, u, v, w, Gu, Gv, Gw, RHS)
+function calc_poisson_right_hand_side!(::GPU, grid, Δt, u, v, w, Gu, Gv, Gw, RHS)
     Nx, Ny, Nz = grid.Nx, grid.Ny, grid.Nz
     @loop for k in (1:Nz; blockIdx().z)
         @loop for j in (1:Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
