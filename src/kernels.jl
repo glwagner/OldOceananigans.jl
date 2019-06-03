@@ -80,24 +80,21 @@ function calc_interior_source_terms!(grid::RegularCartesianGrid{FT}, constants::
                                           pHY′::A, u::A, v::A, w::A, T::A, S::A, Gu::A, Gv::A, Gw::A, GT::A,
                                           GS::A, diffusivities, F) where {FT, A<:OffsetArray{FT, 3, <:AbstractArray{FT, 3}}}
 
-    grav = constants.g
-    fcoriolis = constants.f
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
                 # u-momentum equation
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
-                                            + fv(grid, v, fcoriolis, i, j, k)
-                                            - δx_c2f(grid, pHY′, i, j, k) / Δx
+                                            + fv(grid, v, constants.f, i, j, k)
+                                            - δx_c2f(grid, pHY′, i, j, k) / grid.Δx
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.u(grid, u, v, w, T, S, i, j, k)
                                         )
 
                 # v-momentum equation
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
-                                            - fu(grid, u, fcoriolis, i, j, k)
-                                            - δy_c2f(grid, pHY′, i, j, k) / Δy
+                                            - fu(grid, u, constants.f, i, j, k)
+                                            - δy_c2f(grid, pHY′, i, j, k) / grid.Δy
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.v(grid, u, v, w, T, S, i, j, k)
                                         )
@@ -129,16 +126,13 @@ end
 
 "Store previous value of the source term and calc current source term."
 function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F)
-    grav = constants.g
-    fcoriolis = constants.f
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
                 # u-momentum equation
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
-                                            + fv(grid, v, fcoriolis, i, j, k)
-                                            - δx_c2f(grid, pHY′, i, j, k) / Δx
+                                            + fv(grid, v, constants.f, i, j, k)
+                                            - δx_c2f(grid, pHY′, i, j, k) / grid.Δx
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.u(grid, u, v, w, T, S, i, j, k)
                                         )
@@ -152,16 +146,13 @@ end
 
 "Store previous value of the source term and calc current source term."
 function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F)
-    grav = constants.g
-    fcoriolis = constants.f
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
                 # v-momentum equation
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
-                                            - fu(grid, u, fcoriolis, i, j, k)
-                                            - δy_c2f(grid, pHY′, i, j, k) / Δy
+                                            - fu(grid, u, constants.f, i, j, k)
+                                            - δy_c2f(grid, pHY′, i, j, k) / grid.Δy
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
                                             + F.v(grid, u, v, w, T, S, i, j, k)
                                         )
@@ -175,9 +166,6 @@ end
 
 "Store previous value of the source term and calc current source term."
 function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F)
-    grav = constants.g
-    fcoriolis = constants.f
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -196,9 +184,6 @@ end
 
 "Store previous value of the source term and calc current source term."
 function calc_T_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, GT, diffusivities, F)
-    grav = constants.g
-    fcoriolis = constants.f
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -218,9 +203,6 @@ end
 
 "Store previous value of the source term and calc current source term."
 function calc_S_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, GS, diffusivities, F)
-    grav = constants.g
-    fcoriolis = constants.f
-
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
