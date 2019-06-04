@@ -54,7 +54,9 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
     for n in 1:Nt
 
         # Adams-Bashforth (AB2) parameter.
-        χ = ifelse(model.clock.iteration == 0, FT(-0.5), FT(0.125))
+        # Here we speciy that the loop always starts with a forward euler step. This 
+        # ensures that the algorithm is correct if Δt has changed since the previous step.
+        χ = ifelse(n == 1, FT(-0.5), FT(0.125))
 
         # AB-2 preparation (could be done either before or after time-step):
         @launch dev(arch) threads=Txy blocks=Bxyz update_previous_source_terms!(grid, Gⁿ..., G⁻...)
