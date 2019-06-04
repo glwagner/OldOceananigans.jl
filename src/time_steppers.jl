@@ -54,7 +54,7 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
     for n in 1:Nt
 
         # Adams-Bashforth (AB2) parameter.
-        # Here we speciy that the loop always starts with a forward euler step. This 
+        # Here we speciy that the loop always starts with a forward euler step. This
         # ensures that the algorithm is correct if Δt has changed since the previous step.
         χ = ifelse(n == 1, FT(-0.5), FT(0.125))
 
@@ -67,11 +67,11 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
 
         #@launch dev(arch) threads=Txy blocks=Bxyz calc_interior_source_terms!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ..., diffusivities, forcing)
 
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[1], diffusivities, forcing)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[2], diffusivities, forcing)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[3], diffusivities, forcing)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[4], diffusivities, forcing)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_S_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[5], diffusivities, forcing)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[1], diffusivities, forcing, model.clock.iteration)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[2], diffusivities, forcing, model.clock.iteration)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[3], diffusivities, forcing, model.clock.iteration)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[4], diffusivities, forcing, model.clock.iteration)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_S_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[5], diffusivities, forcing, model.clock.iteration)
 
         calc_boundary_source_terms!(model)
 
