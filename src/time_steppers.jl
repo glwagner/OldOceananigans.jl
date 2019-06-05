@@ -96,7 +96,7 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
         for out in model.output_writers
             if model.clock.time > out.previous + out.interval
                 write_output(model, out)
-                out.previous = model.clock.time
+                out.previous = model.clock.time - rem(model.clock.time, out.interval)
             end
         end
     end

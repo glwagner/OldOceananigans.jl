@@ -35,6 +35,11 @@ export
     data,
     parentdata,
     set!,
+    set_ic!,
+    xnodes,
+    ynodes,
+    znodes,
+    nodes,
 
     # FieldSets (collections of related fields)
     VelocityFields,
