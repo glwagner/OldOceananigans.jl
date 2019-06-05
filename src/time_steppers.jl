@@ -93,8 +93,11 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
             (model.clock.iteration % diagnostic.diagnostic_frequency) == 0 && run_diagnostic(model, diagnostic)
         end
 
-        for output_writer in model.output_writers
-            (model.clock.iteration % output_writer.output_frequency) == 0 && write_output(model, output_writer)
+        for out in model.output_writers
+            if model.clock.time > out.previous + out.interval
+                write_output(model, out)
+                out.previous = model.clock.time
+            end
         end
     end
 
