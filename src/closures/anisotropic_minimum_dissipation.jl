@@ -34,7 +34,7 @@ const Δz_ccc = Δz
 function TurbulentDiffusivities(arch::Architecture, grid::Grid, ::AnisotropicMinimumDissipation)
      νₑ = zeros(arch, grid)
     κTₑ = zeros(arch, grid)
-    return (νₑ=νₑ, κₑ=(T=κTₑ,)
+    return (νₑ=νₑ, κₑ=(T=κTₑ,))
 end
 
 @inline function ν_ccc(i, j, k, grid::Grid{FT}, closure::AnisotropicMinimumDissipation, ϕ,

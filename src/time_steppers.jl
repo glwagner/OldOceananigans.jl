@@ -148,8 +148,8 @@ function calc_boundary_source_terms!(model::Model{A}) where A <: Architecture
 
     grav = model.constants.g
     t, iteration = clock.time, clock.iteration
-    u, v, w, T, S = U.u.data, U.v.data, U.w.data, ϕ.T.data, ϕ.S.data
-    Gu, Gv, Gw, GT, GS = G.Gu.data, G.Gv.data, G.Gw.data, G.GT.data, G.GS.data
+    u, v, w, T, S = U.u.data, U.v.data, U.w.data, ϕ.T.data, nothing
+    Gu, Gv, Gw, GT = G.Gu.data, G.Gv.data, G.Gw.data, G.GT.data
 
     Bx, By, Bz = floor(Int, Nx/Tx), floor(Int, Ny/Ty), Nz  # Blocks in grid
 
@@ -159,7 +159,6 @@ function calc_boundary_source_terms!(model::Model{A}) where A <: Architecture
     v_x_bcs = getproperty(bcs.v, coord)
     w_x_bcs = getproperty(bcs.w, coord)
     T_x_bcs = getproperty(bcs.T, coord)
-    S_x_bcs = getproperty(bcs.S, coord)
 
     # Apply boundary conditions in the vertical direction.
 
@@ -172,12 +171,7 @@ function calc_boundary_source_terms!(model::Model{A}) where A <: Architecture
     apply_bcs!(arch, Val(coord), Bx, By, Bz, v_x_bcs.left, v_x_bcs.right, grid, v, Gv, ν₃₃.ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
-    #apply_bcs!(arch, Val(coord), Bx, By, Bz, w_x_bcs.left, w_x_bcs.right, grid, w, Gw, ν₃₃.cff,
-    #    closure, eos, grav, t, iteration, u, v, w, T, S)
-
     apply_bcs!(arch, Val(coord), Bx, By, Bz, T_x_bcs.left, T_x_bcs.right, grid, T, GT, κ₃₃.ccc,
-        closure, eos, grav, t, iteration, u, v, w, T, S)
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, S_x_bcs.left, S_x_bcs.right, grid, S, GS, κ₃₃.ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
     return nothing

@@ -1,6 +1,6 @@
 using .TurbulenceClosures
 
-mutable struct Model{A<:Architecture, FT, G, V, TT, P, F, C, BC, GT, PS, ST, D, AT}
+mutable struct Model{A<:Architecture, FT, G, V, TT, P, F, C, BC, GT, PS, D, AT}
               arch :: A                         # Computer `Architecture` on which `Model` is run.
               grid :: G                         # Grid of physical points on which `Model` is solved.
              clock :: Clock{FT}                 # Tracks iteration number and simulation time of `Model`.
@@ -15,7 +15,6 @@ mutable struct Model{A<:Architecture, FT, G, V, TT, P, F, C, BC, GT, PS, ST, D, 
                  G :: GT                       # Container for right-hand-side of PDE that governs `Model`
                 Gp :: GT                       # RHS at previous time-step (for Adams-Bashforth time integration)
     poisson_solver :: PS                        # ::PoissonSolver or ::PoissonSolverGPU
-       stepper_tmp :: ST                        # Temporary fields used for the Poisson solver.
      diffusivities :: D
     output_writers :: Array{OutputWriter, 1}    # Objects that write data to disk.
        diagnostics :: Array{Diagnostic, 1}      # Objects that calc diagnostics on-line during simulation.
@@ -59,7 +58,6 @@ function Model(;
         pressures = PressureFields(arch, grid)
                 G = SourceTerms(arch, grid)
                Gp = SourceTerms(arch, grid)
-      stepper_tmp = StepperTemporaryFields(arch, grid)
     diffusivities = TurbulentDiffusivities(arch, grid, closure)
 
     # Initialize Poisson solver.
@@ -72,7 +70,7 @@ function Model(;
 
     Model(arch, grid, clock, eos, constants,
           velocities, tracers, pressures, forcing, closure, bcs,
-          G, Gp, poisson_solver, stepper_tmp, diffusivities, output_writers, diagnostics,
+          G, Gp, poisson_solver, diffusivities, output_writers, diagnostics,
           attributes)
 end
 
