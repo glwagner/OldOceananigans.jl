@@ -224,7 +224,6 @@ function update_velocities_and_tracers!(grid, u, v, w, T, S, pNHS, Gu, Gv, Gw,
                 @inbounds u[i, j, k] = u[i, j, k] + (Gu[i, j, k] - (δx_c2f(grid, pNHS, i, j, k) / grid.Δx)) * Δt
                 @inbounds v[i, j, k] = v[i, j, k] + (Gv[i, j, k] - (δy_c2f(grid, pNHS, i, j, k) / grid.Δy)) * Δt
                 @inbounds T[i, j, k] = T[i, j, k] + (GT[i, j, k] * Δt)
-                #@inbounds S[i, j, k] = S[i, j, k] + (GS[i, j, k] * Δt)
             end
         end
     end

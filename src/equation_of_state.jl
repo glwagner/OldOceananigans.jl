@@ -46,3 +46,6 @@ gravitational acceleration `g`, temperature `T`,  and salinity `S`.
 """
 @inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) =
     grav * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )
+
+@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, ::Nothing) =
+    grav * eos.βT * (T[i, j, k] - eos.T₀)

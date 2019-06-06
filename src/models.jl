@@ -63,11 +63,6 @@ function Model(;
     # Initialize Poisson solver.
     poisson_solver = PoissonSolver(arch, grid)
 
-    # Set the default initial condition
-    #initialize_with_defaults!(eos, tracers, velocities, G, Gp)
-    tracers.S.data .= eos.S₀
-    tracers.T.data .= eos.T₀
-
     Model(arch, grid, clock, eos, constants,
           velocities, tracers, pressures, forcing, closure, bcs,
           G, Gp, poisson_solver, diffusivities, output_writers, diagnostics,
