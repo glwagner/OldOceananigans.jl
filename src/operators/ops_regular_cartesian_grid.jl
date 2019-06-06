@@ -1,7 +1,5 @@
-using Oceananigans:
-    RegularCartesianGrid,
-    Field, CellField, FaceField, FaceFieldX, FaceFieldY, FaceFieldZ, EdgeField,
-    VelocityFields, TracerFields, PressureFields, SourceTerms
+using Oceananigans: RegularCartesianGrid
+
 
 # Increment and decrement integer a with periodic wrapping. So if n == 10 then
 # incmod1(11, n) = 1 and decmod1(0, n) = 10.
@@ -50,22 +48,22 @@ end
     end
 end
 
-@inline avgx_c2f(g::RegularCartesianGrid{T}, f, i, j, k) where T = 
+@inline avgx_c2f(g::RegularCartesianGrid{T}, f, i, j, k) where T =
     @inbounds T(0.5) * (f[i, j, k] + f[decmod1(i, g.Nx), j, k])
 
-@inline avgx_f2c(g::RegularCartesianGrid{T}, f, i, j, k) where T = 
+@inline avgx_f2c(g::RegularCartesianGrid{T}, f, i, j, k) where T =
     @inbounds T(0.5) * (f[incmod1(i, g.Nx), j, k] + f[i, j, k])
 
-@inline avgx_f2e(g::RegularCartesianGrid{T}, f, i, j, k) where T = 
+@inline avgx_f2e(g::RegularCartesianGrid{T}, f, i, j, k) where T =
     @inbounds T(0.5) * (f[i, j, k] + f[decmod1(i, g.Nx), j, k])
 
-@inline avgy_c2f(g::RegularCartesianGrid{T}, f, i, j, k) where T = 
+@inline avgy_c2f(g::RegularCartesianGrid{T}, f, i, j, k) where T =
     @inbounds T(0.5) * (f[i, j, k] + f[i, decmod1(j, g.Ny), k])
 
-@inline avgy_f2c(g::RegularCartesianGrid{T}, f, i, j, k) where T = 
+@inline avgy_f2c(g::RegularCartesianGrid{T}, f, i, j, k) where T =
     @inbounds T(0.5) * (f[i, incmod1(j, g.Ny), k] + f[i, j, k])
 
-@inline avgy_f2e(g::RegularCartesianGrid{T}, f, i, j, k) where T = 
+@inline avgy_f2e(g::RegularCartesianGrid{T}, f, i, j, k) where T =
     @inbounds T(0.5) * (f[i, j, k] + f[i, decmod1(j, g.Ny), k])
 
 @inline function avgz_c2f(g::RegularCartesianGrid{T}, f, i, j, k) where T
