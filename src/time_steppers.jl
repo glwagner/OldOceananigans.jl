@@ -71,7 +71,7 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
         @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[2], diffusivities, forcing, model.clock.iteration)
         @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[3], diffusivities, forcing, model.clock.iteration)
         @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[4], diffusivities, forcing, model.clock.iteration)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_S_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[5], diffusivities, forcing, model.clock.iteration)
+        #@launch dev(arch) threads=Txy blocks=Bxyz calc_S_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[5], diffusivities, forcing, model.clock.iteration)
 
         calc_boundary_source_terms!(model)
 
