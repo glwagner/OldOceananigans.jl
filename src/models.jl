@@ -6,14 +6,14 @@ mutable struct Model{A<:Architecture, FT, G, V, TT, P, F, C, BC, GT, PS, D, AT}
              clock :: Clock{FT}                 # Tracks iteration number and simulation time of `Model`.
                eos :: LinearEquationOfState{FT} # Defines relationship between temp, salinity, buoyancy.
          constants :: PlanetaryConstants{FT}    # Set of physical constants, inc. gravitational acceleration.
-        velocities :: V                        # Container for velocity fields `u`, `v`, and `w`.
+        velocities :: V                         # Container for velocity fields `u`, `v`, and `w`.
            tracers :: TT                        # Container for tracer fields.
-         pressures :: P                        # Container for hydrostatic and nonhydrostatic pressure.
-           forcing :: F                        # Container for forcing functions defined by the user
-           closure :: C                        # Diffusive 'turbulence closure' for all model fields
-               bcs :: BC                       # Container for 3d bcs on all fields.
-                 G :: GT                       # Container for right-hand-side of PDE that governs `Model`
-                Gp :: GT                       # RHS at previous time-step (for Adams-Bashforth time integration)
+         pressures :: P                         # Container for hydrostatic and nonhydrostatic pressure.
+           forcing :: F                         # Container for forcing functions defined by the user
+           closure :: C                         # Diffusive 'turbulence closure' for all model fields
+               bcs :: BC                        # Container for 3d bcs on all fields.
+                 G :: GT                        # Container for right-hand-side of PDE that governs `Model`
+                Gp :: GT                        # RHS at previous time-step (for Adams-Bashforth time integration)
     poisson_solver :: PS                        # ::PoissonSolver or ::PoissonSolverGPU
      diffusivities :: D
     output_writers :: Array{OutputWriter, 1}    # Objects that write data to disk.
@@ -71,30 +71,37 @@ end
 
 arch(model::Model{A}) where A <: Architecture = A
 float_type(m::Model) = eltype(model.grid)
-add_bcs!(model::Model; kwargs...) = add_bcs(model.bcs; kwargs...)
-
-function initialize_with_defaults!(eos, tracers, sets...)
-
-    # Default tracer initial condition is deteremined by eos.
-    tracers.S.data .= eos.S₀
-    tracers.T.data .= eos.T₀
-
-    # Set all further fields to 0
-    for set in sets
-        for fldname in propertynames(set)
-            fld = getproperty(set, fldname)
-            fld.data .= 0 # promotes to eltype of fld.data
-        end
-    end
-
-    return nothing
-end
-
-"Dummy function and forcing default."
-@inline zero_func(args...) = 0
 
 function Forcing(; u=zerofunk, v=zerofunk, w=zerofunk, T=zerofunk)
     (u=u, v=v, w=w, T=T)
 end
 
 time(m::Model) = m.clock.time
+
+function VelocityFields(arch::Architecture, grid::Grid)
+    u = FaceFieldX(arch, grid)
+    v = FaceFieldY(arch, grid)
+    w = FaceFieldZ(arch, grid)
+    return (u=u, v=v, w=w)
+end
+
+function TracerFields(arch::Architecture, grid::Grid)
+    θ = CellField(arch, grid)  # Temperature θ to avoid conflict with type T.
+    S = nothing
+    return (T=θ, S=S)
+end
+
+function PressureFields(arch::Architecture, grid::Grid)
+    pHY′ = CellField(arch, grid)
+    pNHS = CellField(arch, grid)
+    return (pHY′=pHY′, pNHS=pNHS)
+end
+
+function SourceTerms(arch::Architecture, grid::Grid)
+    Gu = FaceFieldX(arch, grid)
+    Gv = FaceFieldY(arch, grid)
+    Gw = FaceFieldZ(arch, grid)
+    GT = CellField(arch, grid)
+    GS = nothing
+    return (Gu=Gu, Gv=Gv, Gw=Gw, GT=GT, GS=GS)
+end

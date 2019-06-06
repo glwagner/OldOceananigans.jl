@@ -11,8 +11,11 @@ include("kernels.jl")
 
 dev(arch) = device(arch)
 
+getdata(fld::Field) = fld.data
+getdata(::Nothing) = nothing
+
 @inline data_tuple(obj, flds=propertynames(obj)) =
-    Tuple(getproperty(getproperty(obj, fld), :data) for fld in flds)
+    Tuple(getdata(getproperty(obj, fld)) for fld in flds)
 
 """
     time_step!(model, Nt, Δt)

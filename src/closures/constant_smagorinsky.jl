@@ -50,15 +50,6 @@ const Δ_fcf = Δ
 const Δ_cff = Δ
 
 """
-    buoyancy(i, j, k, grid, eos, g, T, S)
-
-Calculate the buoyancy at grid point `i, j, k` associated with `eos`,
-gravitational acceleration `g`, temperature `T`,  and salinity `S`.
-"""
-@inline buoyancy(i, j, k, grid, eos::LinearEquationOfState, grav, T, S) =
-    grav * ( eos.βT * (T[i, j, k] - eos.T₀) - eos.βS * (S[i, j, k] - eos.S₀) )
-
-"""
     stability(N², Σ², Pr, Cb)
 
 Return the stability function
