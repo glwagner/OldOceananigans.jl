@@ -29,38 +29,6 @@ float_types = (Float32, Float64)
                 @test end_faces_match_grid_length(FT)
             end
         end
-
-        @testset "Grid dimensions" begin
-            println("    Testing grid dimensions...")
-            L = (100, 100, 100)
-            for FT in float_types
-                @test isbitstype(typeof(RegularCartesianGrid(FT, (16, 16, 16), (1, 1, 1))))
-
-                @test RegularCartesianGrid(FT, (25, 25, 25), L).dim == 3
-                @test RegularCartesianGrid(FT, (5, 25, 125), L).dim == 3
-                @test RegularCartesianGrid(FT, (64, 64, 64), L).dim == 3
-                @test RegularCartesianGrid(FT, (32, 32,  1), L).dim == 2
-                @test RegularCartesianGrid(FT, (32,  1, 32), L).dim == 2
-                @test RegularCartesianGrid(FT, (1,  32, 32), L).dim == 2
-                @test RegularCartesianGrid(FT, (1,  1,  64), L).dim == 1
-
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32,), L)
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 64), L)
-                @test_throws ArgumentError RegularCartesianGrid(FT, (1, 1, 1), L)
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32, 16), L)
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32), (100,))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32), (100, 100))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32), (100, 100, 1, 1))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32), (100, 100, -100))
-
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32.0), (1, 1, 1))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (20.1, 32, 32), (1, 1, 1))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, nothing, 32), (1, 1, 1))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, "32", 32), (1, 1, 1))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32), (1, nothing, 1))
-                @test_throws ArgumentError RegularCartesianGrid(FT, (32, 32, 32), (1, "1", 1))
-            end
-        end
     end
 
     @testset "Fields" begin
@@ -187,13 +155,6 @@ float_types = (Float32, Float64)
                     @test poisson_ppn_planned_div_free_cpu(FT, 1, N, N, FFTW.ESTIMATE)
                     @test poisson_ppn_planned_div_free_cpu(FT, N, 1, N, FFTW.ESTIMATE)
                     @test poisson_ppn_planned_div_free_cpu(FT, 1, 1, N, FFTW.ESTIMATE)
-
-                    # Commented because https://github.com/climate-machine/Oceananigans.jl/issues/99
-                    # for planner_flag in [FFTW.ESTIMATE, FFTW.MEASURE]
-                    #     @test test_3d_poisson_ppn_planned!_div_free(mm, N, N, N, planner_flag)
-                    #     @test test_3d_poisson_ppn_planned!_div_free(mm, 1, N, N, planner_flag)
-                    #     @test test_3d_poisson_ppn_planned!_div_free(mm, N, 1, N, planner_flag)
-                    # end
                 end
             end
 
@@ -261,7 +222,6 @@ float_types = (Float32, Float64)
         end
     end
 
-    #=
     @testset "Boundary conditions" begin
         println("  Testing boundary conditions...")
         include("test_boundary_conditions.jl")
@@ -290,7 +250,6 @@ float_types = (Float32, Float64)
             end
         end
     end
-    =#
 
     @testset "Forcing" begin
         println("  Testing forcings...")
@@ -306,23 +265,6 @@ float_types = (Float32, Float64)
             @test test_forcing(fld)
         end
     end
-
-    #=
-    @testset "Output writers" begin
-        println("  Testing output writers...")
-        include("test_output_writers.jl")
-
-        @testset "Checkpointing" begin
-            println("    Testing checkpointing...")
-            run_thermal_bubble_checkpointer_tests()
-        end
-
-        @testset "NetCDF" begin
-            println("    Testing NetCDF output writer...")
-            run_thermal_bubble_netcdf_tests()
-        end
-    end
-    =#
 
     @testset "Regression tests" begin
         include("test_regression.jl")
