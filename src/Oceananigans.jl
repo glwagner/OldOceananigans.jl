@@ -72,6 +72,8 @@ export
     # Time stepping
     time_step!,
     time_step_kernel!,
+    TimeStepWizard,
+    update_Δt!,
 
     # Poisson solver
     PoissonSolver,
@@ -192,5 +194,6 @@ include("models.jl")
 include("time_steppers.jl")
 include("output_writers.jl")
 include("diagnostics.jl")
+include("time_step_wizard.jl")
 
 end # module
