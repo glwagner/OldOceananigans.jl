@@ -38,7 +38,7 @@ float_types = (Float32, Float64)
         N = (4, 6, 8)
         L = (2π, 3π, 5π)
 
-        field_types = [CellField, FaceFieldX, FaceFieldY, FaceFieldZ, EdgeField]
+        field_types = (CellField, FaceFieldX, FaceFieldY, FaceFieldZ)
 
         @testset "Field initialization" begin
             println("    Testing field initialization...")
@@ -124,27 +124,6 @@ float_types = (Float32, Float64)
     @testset "Poisson solvers" begin
         println("  Testing Poisson solvers...")
         include("test_poisson_solvers.jl")
-
-        @testset "FFTW commutativity" begin
-            println("    Testing FFTW commutativity...")
-
-            # Testing for nice powers of two and not-so-nice prime numbers.
-            for N in [4, 7, 8, 10, 48, 64, 79, 128]
-                @test mixed_fft_commutes(N)
-                @test mixed_ifft_commutes(N)
-            end
-        end
-
-        @testset "FFTW plans" begin
-            println("    Testing FFTW planning...")
-
-            for FT in float_types
-                @test fftw_planner_works(FT, 32, 32, 32, FFTW.ESTIMATE)
-                @test fftw_planner_works(FT, 1,  32, 32, FFTW.ESTIMATE)
-                @test fftw_planner_works(FT, 32,  1, 32, FFTW.ESTIMATE)
-                @test fftw_planner_works(FT,  1,  1, 32, FFTW.ESTIMATE)
-            end
-        end
 
         @testset "Divergence-free solution [CPU]" begin
             println("    Testing divergence-free solution [CPU]...")
@@ -293,7 +272,7 @@ float_types = (Float32, Float64)
         @test internal_wave_test()
         @test passive_tracer_advection_test()
 
-        for fld in (:u, :v, :T, :S)
+        for fld in (:u, :v, :T)
             @test test_diffusion_simple(fld)
             @test test_diffusion_budget(fld)
             @test test_diffusion_cosine(fld)

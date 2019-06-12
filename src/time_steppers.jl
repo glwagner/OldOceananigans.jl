@@ -14,8 +14,10 @@ dev(arch) = device(arch)
 getdata(fld::Field) = fld.data
 getdata(::Nothing) = nothing
 
-@inline data_tuple(obj, flds=propertynames(obj)) =
+@inline datatuple(obj, flds=propertynames(obj)) =
     Tuple(getdata(getproperty(obj, fld)) for fld in flds)
+
+@inline datatuples(objs...) = (datatuple(obj) for obj in objs)
 
 """
     time_step!(model, Nt, Δt)
@@ -40,13 +42,18 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
      diffusivities = model.diffusivities
 
     # We can use the same array for the right-hand-side RHS and the solution ϕ.
-    RHS, ϕ = model.poisson_solver.storage, model.poisson_solver.storage
-     U = data_tuple(model.velocities)
-     ϕ = data_tuple(model.tracers)
-    GU = data_tuple(model.G, (:Gu, :Gv, :Gw))
-    pH, pN = data_tuple(model.pressures)
-    Gⁿ = data_tuple(model.G)
-    G⁻ = data_tuple(model.Gp)
+    RHS = model.poisson_solver.storage
+    U, ϕ, Gⁿ, G⁻ = datatuples(model.velocities, model.tracers, model.G, model.Gp)
+    pH, pN = datatuple(model.pressures)
+    GU = datatuple(model.G, (:Gu, :Gv, :Gw))
+
+     #=
+     U = datatuple(model.velocities)
+     ϕ = datatuple(model.tracers)
+    Gⁿ = datatuple(model.G)
+    G⁻ = datatuple(model.Gp)
+    =#
+
 
     FT = eltype(grid)
 
@@ -66,15 +73,13 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
 
         # Calc the right-hand-side of our PDE and store in Gⁿ:
         @launch dev(arch) threads=Txy blocks=Bxy update_hydrostatic_pressure!(pH, grid, constants, eos, ϕ...)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, constants.g, U..., ϕ...)
 
-        #@launch dev(arch) threads=Txy blocks=Bxyz calc_interior_source_terms!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ..., diffusivities, forcing)
+        @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, constants.g, U..., ϕ...)
 
         @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[1], diffusivities, forcing, model.clock.iteration)
         @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[2], diffusivities, forcing, model.clock.iteration)
         @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[3], diffusivities, forcing, model.clock.iteration)
         @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[4], diffusivities, forcing, model.clock.iteration)
-        #@launch dev(arch) threads=Txy blocks=Bxyz calc_S_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[5], diffusivities, forcing, model.clock.iteration)
 
         calc_boundary_source_terms!(model)
 
