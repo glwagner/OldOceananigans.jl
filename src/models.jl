@@ -41,7 +41,7 @@ function Model(;
      constants = Earth(float_type),
            eos = LinearEquationOfState(float_type),
     # Forcing and boundary conditions for (u, v, w, T, S)
-       forcing = Forcing(nothing, nothing, nothing, nothing, nothing),
+       forcing = Forcing(),
            bcs = ModelBoundaryConditions(),
     # Output and diagonstics
     output_writers = OutputWriter[],
