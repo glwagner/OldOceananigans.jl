@@ -4,56 +4,51 @@ import Base:
     iterate, similar, *, +, -
 
 """
-    CellField{A<:AbstractArray, G<:Grid} <: Field
+    CellField{A<:OffsetArray, G<:Grid} <: Field
 
 A cell-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct CellField{A<:AbstractArray, G<:Grid} <: Field
+struct CellField{A<:OffsetArray, G<:Grid} <: Field
     data::A
     grid::G
 end
 
 """
-    FaceFieldX{A<:AbstractArray, G<:Grid} <: FaceField
+    FaceFieldX{A<:OffsetArray, G<:Grid} <: FaceField
 
 An x-face-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct FaceFieldX{A<:AbstractArray, G<:Grid} <: FaceField
+struct FaceFieldX{A<:OffsetArray, G<:Grid} <: FaceField
     data::A
     grid::G
 end
 
 """
-    FaceFieldY{A<:AbstractArray, G<:Grid} <: FaceField
+    FaceFieldY{A<:OffsetArray, G<:Grid} <: FaceField
 
 A y-face-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct FaceFieldY{A<:AbstractArray, G<:Grid} <: FaceField
+struct FaceFieldY{A<:OffsetArray, G<:Grid} <: FaceField
     data::A
     grid::G
 end
 
 """
-    FaceFieldZ{A<:AbstractArray, G<:Grid} <: Field
+    FaceFieldZ{A<:OffsetArray, G<:Grid} <: Field
 
 A z-face-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct FaceFieldZ{A<:AbstractArray, G<:Grid} <: FaceField
-    data::A
-    grid::G
-end
-
-"""
-    EdgeField{A<:AbstractArray, G<:Grid} <: Field
-
-An edge-centered field defined on a grid `G` whose values are stored in an `A`.
-"""
-struct EdgeField{A<:AbstractArray, G<:Grid} <: Field
+struct FaceFieldZ{A<:OffsetArray, G<:Grid} <: FaceField
     data::A
     grid::G
 end
 
 # Constructors
+
+ CellField(data::Array, grid) = CellField(OffsetArray(data, grid), grid)
+FaceFieldX(data::Array, grid) = FaceFieldX(OffsetArray(data, grid), grid)
+FaceFieldY(data::Array, grid) = FaceFieldY(OffsetArray(data, grid), grid)
+FaceFieldZ(data::Array, grid) = FaceFieldZ(OffsetArray(data, grid), grid)
 
 """
     CellField([T=eltype(grid)], arch, grid)
@@ -87,19 +82,10 @@ Return a `FaceFieldZ` with element type `T` on `arch` and `grid`.
 """
 FaceFieldZ(T, arch, grid) = FaceFieldZ(zeros(T, arch, grid), grid)
 
-"""
-    EdgeField([T=eltype(grid)], arch, grid)
-
-Return an `EdgeField` with element type `T` on `arch` and `grid`.
-`T` defaults to the element type of `grid`.
-"""
- EdgeField(T, arch, grid) =  EdgeField(zeros(T, arch, grid), grid)
-
  CellField(arch, grid) =  CellField(zeros(arch, grid), grid)
 FaceFieldX(arch, grid) = FaceFieldX(zeros(arch, grid), grid)
 FaceFieldY(arch, grid) = FaceFieldY(zeros(arch, grid), grid)
 FaceFieldZ(arch, grid) = FaceFieldZ(zeros(arch, grid), grid)
- EdgeField(arch, grid) =  EdgeField(zeros(arch, grid), grid)
 
 @inline size(f::Field) = size(f.grid)
 @inline length(f::Field) = length(f.data)
@@ -128,7 +114,7 @@ set!(u::Field, v::Field) = @. u.data = v.data
 # another FaceFieldY, otherwise some interpolation or averaging must be done so
 # that the two fields are defined at the same point, so the operation which
 # will not be commutative anymore.
-for ft in (:CellField, :FaceFieldX, :FaceFieldY, :FaceFieldZ, :EdgeField)
+for ft in (:CellField, :FaceFieldX, :FaceFieldY, :FaceFieldZ)
     for op in (:+, :-, :*)
         @eval begin
             # +, -, * a Field by a Number on the left.
@@ -164,7 +150,7 @@ nodes(ϕ) = (xnodes(ϕ), ynodes(ϕ), znodes(ϕ))
 zerofunk(args...) = 0
 
 function set_ic!(model; ics...)
-    for (fld, ic) in ics 
+    for (fld, ic) in ics
         if fld ∈ (:u, :v, :w)
             ϕ = getproperty(model.velocities, fld)
         else
