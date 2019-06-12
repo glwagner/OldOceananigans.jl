@@ -43,6 +43,51 @@ end
 # Default to type of Grid
 Base.zeros(arch, g::Grid{T}) where T = zeros(T, arch, g)
 
+function cell_advection_timescale(u, v, w, grid)
+
+    umax = maximum(abs, u)
+    vmax = maximum(abs, v)
+    wmax = maximum(abs, w)
+
+    Δx = grid.Δx
+    Δy = grid.Δy
+    Δz = grid.Δz
+
+    return min(Δx/umax, Δy/vmax, Δz/wmax)
+end
+
+function cell_diffusion_timescale(ν, κ, grid)
+
+    νmax = maximum(abs, ν)
+    κmax = maximum(abs, κ)
+
+    Δx = min(grid.Δx)
+    Δy = min(grid.Δy)
+    Δz = min(grid.Δz)
+
+    Δ = min(Δx, Δy, Δz) # assuming diffusion is isotropic for now
+
+    return min(Δ^2/νmax, Δ^2/κmax) 
+
+end
+
+function cell_advection_timescale(model)
+    cell_advection_timescale(
+                             model.velocities.u.data.parent,
+                             model.velocities.v.data.parent,
+                             model.velocities.w.data.parent,
+                             model.grid
+                            )
+end
+
+function cell_diffusion_timescale(model)
+    cell_diffusion_timescale(
+                             model.closure.ν,
+                             model.closure.κ,
+                             model.grid
+                            )
+end
+
 Base.@kwdef mutable struct TimeStepWizard{T}
               cfl :: T = 0.1
     cfl_diffusion :: T = 2e-2
@@ -68,50 +113,3 @@ function update_Δt!(wizard, model)
 
     return nothing
 end
-
-function cell_advection_timescale(u, v, w, grid)
-
-    umax = maximum(abs, u)
-    vmax = maximum(abs, v)
-    wmax = maximum(abs, w)
-
-    Δx = u.grid.Δx
-    Δy = u.grid.Δy
-    Δz = u.grid.Δz
-
-    return min(Δx/umax, Δy/vmax, Δz/wmax)
-end
-
-function cell_diffusion_timescale(ν, κ, grid)
-
-    νmax = maximum(abs, ν)
-    κmax = maximum(abs, κ)
-
-    Δx = min(u.grid.Δx)
-    Δy = min(u.grid.Δy)
-    Δz = min(u.grid.Δz)
-
-    Δ = min(Δx, Δy, Δz) # assuming diffusion is isotropic for now
-
-    return min(Δ^2/νmax, Δ^2/κmax) 
-
-end
-
-function cell_advection_timescale(model)
-    cell_advection_timescale(
-                             model.velocities.u.data.parent,
-                             model.velocities.v.data.parent,
-                             model.velocities.w.data.parent,
-                             model.grid
-                            )
-end
-
-function cell_diffusion_timescale(model)
-    cell_diffusion_timescale(
-                             model.closure.ν,
-                             model.closure.κ,
-                             model.grid
-                            )
-end
-
-
