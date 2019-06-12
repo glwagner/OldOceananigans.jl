@@ -91,6 +91,9 @@ export
     restore_from_checkpoint,
     BinaryOutputWriter,
     NetCDFOutputWriter,
+    JLD2OutputWriter,
+    HorizontalAverages,
+    VerticalPlanes,
     write_output,
     read_output,
 
