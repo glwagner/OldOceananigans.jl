@@ -70,17 +70,17 @@ function RegularCartesianGrid(T, N, L)
     Ty = Ny + 2*Hy
     Tz = Nz + 2*Hz
 
-    Lx = convert(T, Lx)
-    Ly = convert(T, Ly)
-    Lz = convert(T, Lz)
+    Lx = Lx
+    Ly = Ly
+    Lz = Lz
 
-    Δx = convert(T, Lx / Nx)
-    Δy = convert(T, Ly / Ny)
-    Δz = convert(T, Lz / Nz)
+    Δx = Lx / Nx
+    Δy = Ly / Ny
+    Δz = Lz / Nz
 
-    Ax = convert(T, Δy*Δz)
-    Ay = convert(T, Δx*Δz)
-    Az = convert(T, Δx*Δy)
+    Ax = Δy*Δz
+    Ay = Δx*Δz
+    Az = Δx*Δy
 
     V = convert(T, Δx*Δy*Δz)
 

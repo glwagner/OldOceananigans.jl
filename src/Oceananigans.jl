@@ -2,6 +2,9 @@ module Oceananigans
 
 export
     # Helper variables and macros for determining if machine is CUDA-enabled.
+    minute,
+    hour,
+    day,
     HAVE_CUDA,
     @hascuda,
 
@@ -125,6 +128,11 @@ using
 import
     Adapt,
     GPUifyLoops
+
+# Some useful constants
+const minute = 60.0
+const hour = 60minute
+const day = 24hour
 
 # Adapt an offset CuArray to work nicely with CUDA kernels.
 Adapt.adapt_structure(to, x::OffsetArray) = OffsetArray(Adapt.adapt(to, parent(x)), x.offsets)

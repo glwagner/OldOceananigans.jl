@@ -5,8 +5,7 @@ function u_relative_error(model, u)
         xnodes(u_num), ynodes(u_num), znodes(u_num), model.clock.time),
         model.grid)
 
-    return mean(
-        (data(u_num) .- u_ans.data).^2 ) / mean(u_ans.data.^2)
+    return mean((data(u_num) .- data(u_ans)).^2 ) / mean(data(u_ans).^2)
 end
 
 function w_relative_error(model, w)
@@ -16,8 +15,7 @@ function w_relative_error(model, w)
         w.(xnodes(w_num), ynodes(w_num), znodes(w_num), model.clock.time),
         model.grid)
 
-    return mean(
-        (data(w_num) .- w_ans.data).^2 ) / mean(w_ans.data.^2)
+    return mean((data(w_num) .- data(w_ans)).^2 ) / mean(data(w_ans).^2)
 end
 
 function T_relative_error(model, T)
@@ -27,8 +25,7 @@ function T_relative_error(model, T)
         T.(xnodes(T_num), ynodes(T_num), znodes(T_num), model.clock.time),
         model.grid)
 
-    return mean(
-        (data(T_num) .- T_ans.data).^2 ) / mean(T_ans.data.^2)
+    return mean((data(T_num) .- data(T_ans)).^2 ) / mean(data(T_ans).^2)
 end
 
 function test_diffusion_simple(fld)

@@ -45,10 +45,21 @@ end
 
 # Constructors
 
- CellField(data::Array, grid) = CellField(OffsetArray(data, grid), grid)
-FaceFieldX(data::Array, grid) = FaceFieldX(OffsetArray(data, grid), grid)
-FaceFieldY(data::Array, grid) = FaceFieldY(OffsetArray(data, grid), grid)
-FaceFieldZ(data::Array, grid) = FaceFieldZ(OffsetArray(data, grid), grid)
+function Field(FieldType, data::Array, grid) 
+
+    c = FieldType(CPU(), grid)
+
+    for k=1:grid.Nz, j=1:grid.Ny, i=1:grid.Nx
+        @inbounds c[i, j, k] = data[i, j, k]
+    end
+    
+    return c
+end
+
+CellField(data::Array, grid) = Field(CellField, data, grid)
+FaceFieldX(data::Array, grid) = Field(FaceFieldX, data, grid)
+FaceFieldY(data::Array, grid) = Field(FaceFieldY, data, grid)
+FaceFieldZ(data::Array, grid) = Field(FaceFieldZ, data, grid)
 
 """
     CellField([T=eltype(grid)], arch, grid)

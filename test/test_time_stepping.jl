@@ -23,7 +23,7 @@ function run_first_AB2_time_step_tests(arch, FT)
     model = Model(arch=arch, float_type=FT,
         N = (Nx, Ny, Nz), 
         L = (Lx, Ly, Lz), 
-        forcing = Forcing(nothing, nothing, nothing, add_ones, nothing)
+        forcing = Forcing(T=add_ones)
     )
 
     time_step!(model, 1, Δt)
@@ -33,7 +33,6 @@ function run_first_AB2_time_step_tests(arch, FT)
     @test all(data(model.G.Gv) .≈ 0)
     @test all(data(model.G.Gw) .≈ 0)
     @test all(data(model.G.GT) .≈ 1.0)
-    @test all(data(model.G.GS) .≈ 0)
 
     return nothing
 end

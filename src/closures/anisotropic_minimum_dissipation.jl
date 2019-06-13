@@ -22,9 +22,9 @@ function AnisotropicMinimumDissipation(FT=Float64;
 end
 
 "Return the filter width for Anisotropic Minimum Dissipation on a Regular Cartesian grid."
-Δx(i, j, k, grid::RegularCartesianGrid, ::AnisotropicMinimumDissipation) = grid.Δx
-Δy(i, j, k, grid::RegularCartesianGrid, ::AnisotropicMinimumDissipation) = grid.Δy
-Δz(i, j, k, grid::RegularCartesianGrid, ::AnisotropicMinimumDissipation) = grid.Δz
+@inline Δx(i, j, k, grid::RegularCartesianGrid, ::AnisotropicMinimumDissipation) = grid.Δx
+@inline Δy(i, j, k, grid::RegularCartesianGrid, ::AnisotropicMinimumDissipation) = grid.Δy
+@inline Δz(i, j, k, grid::RegularCartesianGrid, ::AnisotropicMinimumDissipation) = grid.Δz
 
 # We only have regular grids for now. When we have non-regular grids this will need to be changed.
 const Δx_ccc = Δx
@@ -261,8 +261,6 @@ function calc_diffusivities!(diffusivities, grid, closure::AnisotropicMinimumDis
                 @inbounds diffusivities.κₑ.T[i, j, k] = κ_ccc(i, j, k, grid, closure, T,
                                                                 eos, grav, u, v, w, T, S)
 
-                #@inbounds diffusivities.κₑ.S[i, j, k] = κ_ccc(i, j, k, grid, closure, S,
-                #                                                eos, grav, u, v, w, T, S)
             end
         end
     end

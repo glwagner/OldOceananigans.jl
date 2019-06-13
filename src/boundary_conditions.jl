@@ -65,7 +65,6 @@ end
 ZBoundaryConditions(; top=DefaultBC(), bottom=DefaultBC()) = 
     CoordinateBoundaryConditions(top, bottom)
 
-#=
 const CBC = CoordinateBoundaryConditions
 
 #=
@@ -85,7 +84,6 @@ Base.getproperty(cbc::CBC, side::Symbol) = getbc(cbc, Val(side))
 getbc(cbc::CBC, ::Val{S}) where S = getfield(cbc, S)
 getbc(cbc::CBC, ::Val{:bottom}) = getfield(cbc, :right)
 getbc(cbc::CBC, ::Val{:top}) = getfield(cbc, :left)
-=#
 
 """
     FieldBoundaryConditions()

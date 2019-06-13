@@ -3,7 +3,7 @@ function test_z_boundary_condition_simple(arch, T, field_name, bctype, bc, Nx, N
     model = Model(N=(Nx, Ny, Nz), L=(0.1, 0.2, 0.3), arch=arch, float_type=T)
 
     bc = BoundaryCondition(bctype, bc)
-    bcs = getfield(model.boundary_conditions, field_name)
+    bcs = getfield(model.bcs, field_name)
     bcs.z.top = bc
 
     time_step!(model, 1, 1e-16)
@@ -16,7 +16,7 @@ function test_z_boundary_condition_top_bottom_alias(arch, TF, field_name)
     model = Model(N=(N, N, N), L=(0.1, 0.2, 0.3), arch=arch, float_type=TF)
 
     bcval = 1.0
-    bcs = getfield(model.boundary_conditions, field_name)
+    bcs = getfield(model.bcs, field_name)
     bcs.z.top = BoundaryCondition(Value, bcval)
     bcs.z.bottom = BoundaryCondition(Value, -bcval)
 
@@ -34,7 +34,7 @@ function test_z_boundary_condition_array(arch, T, field_name)
         bcarray = CuArray(bcarray)
     end
 
-    bcs = getfield(model.boundary_conditions, field_name)
+    bcs = getfield(model.bcs, field_name)
     bcs.z.top = BoundaryCondition(Value, bcarray)
 
     time_step!(model, 1, 1e-16)
@@ -58,7 +58,7 @@ function test_flux_budget(arch, TF, field_name)
 
     bottom_flux = TF(0.3)
     flux_bc = BoundaryCondition(Flux, bottom_flux)
-    bcs = getfield(model.boundary_conditions, field_name)
+    bcs = getfield(model.bcs, field_name)
     bcs.z.bottom = flux_bc
 
     mean_init = mean(data(field))

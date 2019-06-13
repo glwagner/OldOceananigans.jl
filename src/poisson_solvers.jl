@@ -76,7 +76,7 @@ function solve_poisson_3d_ppn_planned!(solver::PoissonSolverCPU, grid::RegularCa
         @inbounds ϕ[i, j, k] = -RHS[i, j, k] / (solver.kx²[i] + solver.ky²[j] + solver.kz²[k])
     end
 
-    ϕ[1, 1, 1] = 0  # Setting DC component of the solution (the mean) to be zero.
+    ϕ[1, 1, 1] = 0 # Setting the mean pressure to zero.
 
     solver.IFFT! * ϕ  # Calculate IFFTˣʸ(ϕ) in place.
     solver.IDCT! * ϕ  # Calculate IDCTᶻ(ϕ) in place.

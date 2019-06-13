@@ -7,17 +7,6 @@ function ▶z_buoyancy_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
     end
 end
 
-function ▶z_buoyancy_w_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
-    if k == 1
-        return -zero(FT)
-    else
-        return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S)
-                        + buoyancy(i, j, k-1, grid, eos, grav, T, S))
-    end
-end
-
-
-
 """
     update_hydrostatic_pressure!(ph, grid, constants, eos, T, S)
 Calculate the perbutation hydrostatic pressure `ph` from the buoyancy field
@@ -73,18 +62,19 @@ function update_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, 
     @synchronize
 end
 
-"Store previous value of the source term and calc current source term."
-function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F, iter)
+"Calculate the source term for the u equation."
+function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F, clock)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                # u-momentum equation
+
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
                                             + fv(grid, v, constants.f, i, j, k)
                                             - δx_c2f(grid, pHY′, i, j, k) / grid.Δx
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            + F.u(grid.xF[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, iter)
+                                            + F.u(grid.xF[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, clock)
                                         )
+
             end
         end
     end
@@ -93,18 +83,19 @@ function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
 end
 
 
-"Store previous value of the source term and calc current source term."
-function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F, iter)
+"Calculate the source term for the v equation."
+function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F, clock)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                # v-momentum equation
+
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
                                             - fu(grid, u, constants.f, i, j, k)
                                             - δy_c2f(grid, pHY′, i, j, k) / grid.Δy
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            + F.v(grid.xC[i], grid.yF[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, iter)
+                                            + F.v(grid.xC[i], grid.yF[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, clock)
                                         )
+
             end
         end
     end
@@ -113,17 +104,17 @@ function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
 end
 
 
-"Store previous value of the source term and calc current source term."
-function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F, iter)
+"Calculate the source term for the w equation."
+function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F, clock)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                # w-momentum equation
+
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
-                                         # + ▶z_buoyancy_aaf(i, j, k, grid, eos, grav, T, S)
                                          + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                         + F.w(grid.xC[i], grid.yC[j], grid.zF[k], u, v, w, T, S, grid, i, j, k, iter)
+                                         + F.w(grid.xC[i], grid.yC[j], grid.zF[k], u, v, w, T, S, grid, i, j, k, clock)
                                         )
+
             end
         end
     end
@@ -131,16 +122,15 @@ function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
     @synchronize
 end
 
-"Store previous value of the source term and calc current source term."
-function calc_T_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, GT, diffusivities, F, iter)
+"Calculate the source term for the T equation."
+function calc_T_source_term!(grid, constants, eos, closure, u, v, w, T, S, GT, diffusivities, F, clock)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
-                # temperature equation
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
                                          + ∇_κ_∇T(i, j, k, grid, T, closure, diffusivities)
-                                         + F.T(grid.xC[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, iter)
+                                         + F.T(grid.xC[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, clock)
                                         )
             end
         end
@@ -202,7 +192,6 @@ function idct_permute!(grid, ϕ, pNHS)
     @loop for k in (1:Nz; blockIdx().z)
         @loop for j in (1:Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                #if k > Nz/2
                 if k <= Nz/2
                     @inbounds pNHS[i, j, 2k-1] = real(ϕ[i, j, k])
                 else

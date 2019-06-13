@@ -14,9 +14,7 @@ dev(arch) = device(arch)
 getdata(fld::Field) = fld.data
 getdata(::Nothing) = nothing
 
-@inline datatuple(obj, flds=propertynames(obj)) =
-    Tuple(getdata(getproperty(obj, fld)) for fld in flds)
-
+@inline datatuple(obj, flds=propertynames(obj)) = Tuple(getdata(getproperty(obj, fld)) for fld in flds)
 @inline datatuples(objs...) = (datatuple(obj) for obj in objs)
 
 """
@@ -33,27 +31,19 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
     end
 
     # Unpack model fields
-              arch = model.arch
-              grid = model.grid
-               eos = model.eos
-         constants = model.constants
-           forcing = model.forcing
-           closure = model.closure
-     diffusivities = model.diffusivities
+             arch = model.arch
+             grid = model.grid
+              eos = model.eos
+        constants = model.constants
+          forcing = model.forcing
+          closure = model.closure
+    diffusivities = model.diffusivities
 
     # We can use the same array for the right-hand-side RHS and the solution ϕ.
     RHS = model.poisson_solver.storage
     U, ϕ, Gⁿ, G⁻ = datatuples(model.velocities, model.tracers, model.G, model.Gp)
     pH, pN = datatuple(model.pressures)
     GU = datatuple(model.G, (:Gu, :Gv, :Gw))
-
-     #=
-     U = datatuple(model.velocities)
-     ϕ = datatuple(model.tracers)
-    Gⁿ = datatuple(model.G)
-    G⁻ = datatuple(model.Gp)
-    =#
-
 
     FT = eltype(grid)
 
@@ -68,34 +58,8 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
         # ensures that the algorithm is correct if Δt has changed since the previous step.
         χ = ifelse(n == 1, FT(-0.5), FT(0.125))
 
-        # AB-2 preparation (could be done either before or after time-step):
-        @launch dev(arch) threads=Txy blocks=Bxyz update_previous_source_terms!(grid, Gⁿ..., G⁻...)
-
-        # Calc the right-hand-side of our PDE and store in Gⁿ:
-        @launch dev(arch) threads=Txy blocks=Bxy update_hydrostatic_pressure!(pH, grid, constants, eos, ϕ...)
-
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, constants.g, U..., ϕ...)
-
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[1], diffusivities, forcing, model.clock.iteration)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[2], diffusivities, forcing, model.clock.iteration)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[3], diffusivities, forcing, model.clock.iteration)
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., Gⁿ[4], diffusivities, forcing, model.clock.iteration)
-
-        calc_boundary_source_terms!(model)
-
-        # Use Gⁿ and G⁻ to perform the first AB-2 substep, obtaining u⋆:
-        @launch dev(arch) threads=Txy blocks=Bxyz adams_bashforth_update_source_terms!(grid, Gⁿ..., G⁻..., χ)
-
-        # Calculate the pressure correction based on the divergence of u⋆:
-        @launch dev(arch) threads=Txy blocks=Bxyz calc_poisson_right_hand_side!(arch, grid, Δt, U..., GU..., RHS)
-        solve_for_pressure!(arch, model)
-
-        # Use the pressure correction to complete the second AB-2 substep, obtaining uⁿ⁺¹:
-        @launch device(arch) threads=Txy blocks=Bxyz update_velocities_and_tracers!(grid, U..., ϕ..., pN, Gⁿ..., G⁻..., Δt)
-        @launch device(arch) threads=Txy blocks=Bxy compute_w_from_continuity!(grid, U...)
-
-        model.clock.time += Δt
-        model.clock.iteration += 1
+        time_step!(model, arch, grid, constants, eos, closure, forcing, pH, pN, U, ϕ, diffusivities,
+                   RHS, Gⁿ, G⁻, GU, Δt, χ, Txy, Bxy, Bxyz)
 
         for diagnostic in model.diagnostics
             (model.clock.iteration % diagnostic.diagnostic_frequency) == 0 && run_diagnostic(model, diagnostic)
@@ -112,19 +76,66 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
     return nothing
 end
 
+function time_step!(model, arch, grid, constants, eos, closure, forcing, pH, pN, U, ϕ, diffusivities, 
+                    RHS, Gⁿ, G⁻, GU, Δt, χ, Txy, Bxy, Bxyz)
+    # AB-2 preparation (could be done either before or after time-step):
+    @launch dev(arch) threads=Txy blocks=Bxyz update_previous_source_terms!(grid, Gⁿ..., G⁻...)
+
+    # Calc the right-hand-side of our PDE and store in Gⁿ:
+    @launch dev(arch) threads=Txy blocks=Bxy update_hydrostatic_pressure!(pH, grid, constants, eos, ϕ...)
+
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, 
+                                                                  constants.g, U..., ϕ...)
+
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
+                                                Gⁿ[1], diffusivities, forcing, model.clock)
+
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
+                                                Gⁿ[2], diffusivities, forcing, model.clock)
+
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
+                                                Gⁿ[3], diffusivities, forcing, model.clock)
+
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, U..., ϕ..., 
+                                                Gⁿ[4], diffusivities, forcing, model.clock)
+
+    calc_boundary_source_terms!(model)
+
+    # Use Gⁿ and G⁻ to perform the first AB-2 substep, obtaining u⋆:
+    @launch dev(arch) threads=Txy blocks=Bxyz adams_bashforth_update_source_terms!(grid, Gⁿ..., G⁻..., χ)
+
+    # Calculate the pressure correction based on the divergence of u⋆:
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_poisson_right_hand_side!(arch, grid, Δt, U..., GU..., RHS)
+    solve_for_pressure!(arch, model)
+
+    # Use the pressure correction to complete the second AB-2 substep, obtaining uⁿ⁺¹:
+    @launch device(arch) threads=Txy blocks=Bxyz update_velocities_and_tracers!(grid, U..., ϕ..., pN, Gⁿ..., 
+                                                                                G⁻..., Δt)
+
+    @launch device(arch) threads=Txy blocks=Bxy compute_w_from_continuity!(grid, U...)
+
+    model.clock.time += Δt
+    model.clock.iteration += 1
+
+    return nothing
+end
+
+
 time_step!(model; Nt, Δt) = time_step!(model, Nt, Δt)
 
 function solve_for_pressure!(::CPU, model::Model)
     Nx, Ny, Nz = model.grid.Nx, model.grid.Ny, model.grid.Nz
-    RHS, ϕ = model.poisson_solver.storage, model.poisson_solver.storage
+    ϕ = model.poisson_solver.storage
 
     solve_poisson_3d_ppn_planned!(model.poisson_solver, model.grid)
     data(model.pressures.pNHS) .= real.(ϕ)
+
+    return nothing
 end
 
 function solve_for_pressure!(::GPU, model::Model)
     Nx, Ny, Nz = model.grid.Nx, model.grid.Ny, model.grid.Nz
-    RHS, ϕ = model.poisson_solver.storage, model.poisson_solver.storage
+    ϕ = model.poisson_solver.storage
 
     Tx, Ty = 16, 16  # Not sure why I have to do this. Will be superseded soon.
     Bx, By, Bz = floor(Int, Nx/Tx), floor(Int, Ny/Ty), Nz  # Blocks in grid
@@ -173,13 +184,13 @@ function calc_boundary_source_terms!(model::Model{A}) where A <: Architecture
     # *Note*: for vertical boundaries in xz or yz, the transport coefficients should be evaluated at
     # different locations than the ones speciifc below, which are specific to boundaries in the xy-plane.
 
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, u_x_bcs.left, u_x_bcs.right, grid, u, Gu, ν₃₃.ccc,
+    apply_bcs!(arch, Val(coord), Bx, By, Bz, u_x_bcs.left, u_x_bcs.right, grid, u, Gu, ν_ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, v_x_bcs.left, v_x_bcs.right, grid, v, Gv, ν₃₃.ccc,
+    apply_bcs!(arch, Val(coord), Bx, By, Bz, v_x_bcs.left, v_x_bcs.right, grid, v, Gv, ν_ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
-    apply_bcs!(arch, Val(coord), Bx, By, Bz, T_x_bcs.left, T_x_bcs.right, grid, T, GT, κ₃₃.ccc,
+    apply_bcs!(arch, Val(coord), Bx, By, Bz, T_x_bcs.left, T_x_bcs.right, grid, T, GT, κ_ccc,
         closure, eos, grav, t, iteration, u, v, w, T, S)
 
     return nothing

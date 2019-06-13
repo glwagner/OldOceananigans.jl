@@ -65,31 +65,6 @@ function test_constant_isotropic_diffusivity_basic(T=Float64; ν=T(0.3), κ=T(0.
     return closure.ν == ν && closure.κ == κ
 end
 
-function test_tensor_diffusivity_tuples(T=Float64; ν=T(0.3), κ=T(0.7))
-    closure = ConstantIsotropicDiffusivity(T, κ=κ, ν=ν)
-    return (
-            κ₁₁.ccc(nothing, nothing, nothing, nothing, closure) == κ &&
-            κ₂₂.ccc(nothing, nothing, nothing, nothing, closure) == κ &&
-            κ₃₃.ccc(nothing, nothing, nothing, nothing, closure) == κ &&
-
-            ν₁₁.ccc(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₂₂.ccc(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₃₃.ccc(nothing, nothing, nothing, nothing, closure) == ν &&
-
-            ν₁₁.ffc(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₂₂.ffc(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₃₃.ffc(nothing, nothing, nothing, nothing, closure) == ν &&
-
-            ν₁₁.fcf(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₂₂.fcf(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₃₃.fcf(nothing, nothing, nothing, nothing, closure) == ν &&
-
-            ν₁₁.cff(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₂₂.cff(nothing, nothing, nothing, nothing, closure) == ν &&
-            ν₃₃.cff(nothing, nothing, nothing, nothing, closure) == ν
-    )
-end
-
 function test_constant_isotropic_diffusivity_fluxdiv(TF=Float64; ν=TF(0.3), κ=TF(0.7))
     closure = ConstantIsotropicDiffusivity(TF, κ=κ, ν=ν)
     grid = RegularCartesianGrid(TF, (3, 1, 1), (3, 1, 1))
@@ -111,38 +86,6 @@ function test_constant_isotropic_diffusivity_fluxdiv(TF=Float64; ν=TF(0.3), κ=
             )
 end
 
-function test_anisotropic_diffusivity_fluxdiv(TF=Float64; νh=TF(0.3), κh=TF(0.7), νv=TF(0.1), κv=TF(0.5))
-    closure = ConstantAnisotropicDiffusivity(TF, κh=κh, νh=νh, κv=κv, νv=νv)
-    grid = RegularCartesianGrid(TF, (3, 1, 3), (3, 1, 3))
-    eos = LinearEquationOfState(TF)
-    g = 1.0
-
-    u = zeros(TF, 3, 1, 3); v = zeros(TF, 3, 1, 3); w = zeros(TF, 3, 1, 3)
-    T = zeros(TF, 3, 1, 3); S = zeros(TF, 3, 1, 3)
-
-    u[:, 1, 1] .= [0,  1, 0]
-    u[:, 1, 2] .= [0, -1, 0]
-    u[:, 1, 3] .= [0,  1, 0]
-
-    v[:, 1, 1] .= [0,  1, 0]
-    v[:, 1, 2] .= [0, -2, 0]
-    v[:, 1, 3] .= [0,  1, 0]
-
-    w[:, 1, 1] .= [0,  1, 0]
-    w[:, 1, 2] .= [0, -3, 0]
-    w[:, 1, 3] .= [0,  1, 0]
-
-    T[:, 1, 1] .= [0,  1, 0]
-    T[:, 1, 2] .= [0, -4, 0]
-    T[:, 1, 3] .= [0,  1, 0]
-
-    return (∇_κ_∇ϕ(2, 1, 2, grid, T, closure) == 8κh + 10κv &&
-            ∂ⱼ_2ν_Σ₁ⱼ(2, 1, 2, grid, closure, u, v, w) == 2νh + 4νv &&
-            ∂ⱼ_2ν_Σ₂ⱼ(2, 1, 2, grid, closure, u, v, w) == 4νh + 6νv &&
-            ∂ⱼ_2ν_Σ₃ⱼ(2, 1, 2, grid, closure, u, v, w) == 6νh + 8νv
-            )
-end
-
 function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
     closure = ConstantSmagorinsky(TF; Cs=0.0, ν=νᵇ, κ=κᵇ)
     grid = RegularCartesianGrid(TF, (5, 5, 5), (5, 5, 5))
@@ -152,8 +95,8 @@ function test_smag_sanity(TF=Float64, νᵇ=0.3, κᵇ=0.7)
     T, S = rand(TF, size(grid)...), rand(TF, size(grid)...)
 
     return (
-            ν₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(νᵇ) &&
-            κ₁₁.ccc(3, 3, 3, grid, closure, eos, g, u, v, w, T, S) == TF(κᵇ)
+            TurbulenceClosures.ν_ccc(3, 3, 3, grid, closure, T, eos, g, u, v, w, T, S) == TF(νᵇ) &&
+            TurbulenceClosures.κ_ccc(3, 3, 3, grid, closure, T, eos, g, u, v, w, T, S) == TF(κᵇ)
         )
 end
 
