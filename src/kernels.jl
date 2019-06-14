@@ -1,6 +1,8 @@
+import TurbulenceClosures: ∂x_faa, ∂y_afa
+
 function ▶z_buoyancy_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
     if k == 1
-        return buoyancy(i, j, 1, grid, eos, grav, T, S)
+        return FT(0.5) * buoyancy(i, j, 1, grid, eos, grav, T, S)
     else
         return FT(0.5) * (buoyancy(i, j, k, grid, eos, grav, T, S)
                         + buoyancy(i, j, k-1, grid, eos, grav, T, S))
@@ -34,12 +36,12 @@ yields
 We solve this discrete equation by integrating from the top down,
 using the surface buoyancy to set the boundary condition.
 """
-function update_hydrostatic_pressure!(pHY′, grid::Grid{FT}, constants, eos, T, S) where FT
+function update_hydrostatic_pressure!(ph, grid::Grid{FT}, constants, eos, T, S) where FT
     @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
         @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-            @inbounds pHY′[i, j, 1] = - grid.Δz * ▶z_buoyancy_aaf(i, j, 1, grid, eos, constants.g, T, S)
+            @inbounds ph[i, j, 1] = - grid.Δz * ▶z_buoyancy_aaf(i, j, 1, grid, eos, constants.g, T, S)
             @unroll for k in 2:grid.Nz
-                @inbounds pHY′[i, j, k] = pHY′[i, j, k-1] - grid.Δz * ▶z_buoyancy_aaf(i, j, k, grid, eos, constants.g, T, S)
+                @inbounds ph[i, j, k] = ph[i, j, k-1] - grid.Δz * ▶z_buoyancy_aaf(i, j, k, grid, eos, constants.g, T, S)
             end
         end
     end
@@ -63,16 +65,16 @@ function update_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, 
 end
 
 "Calculate the source term for the u equation."
-function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F, time)
+function calc_u_source_term!(grid, constants, eos, closure, ph, u, v, w, T, S, Gu, K, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
                 @inbounds Gu[i, j, k] = (-u∇u(grid, u, v, w, i, j, k)
                                             + fv(grid, v, constants.f, i, j, k)
-                                            - δx_c2f(grid, pHY′, i, j, k) / grid.Δx
-                                            + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            + F.u(grid.xF[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, time)
+                                            - ∂x_faa(i, j, k, grid, ph)
+                                            + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, K)
+                                            + F.u(grid.xF[i], grid.yC[j], grid.zC[k], time, u, v, w, T, S, grid, i, j, k)
                                         )
 
             end
@@ -84,16 +86,16 @@ end
 
 
 "Calculate the source term for the v equation."
-function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F, time)
+function calc_v_source_term!(grid, constants, eos, closure, ph, u, v, w, T, S, Gv, K, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
                 @inbounds Gv[i, j, k] = (-u∇v(grid, u, v, w, i, j, k)
                                             - fu(grid, u, constants.f, i, j, k)
-                                            - δy_c2f(grid, pHY′, i, j, k) / grid.Δy
-                                            + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            + F.v(grid.xC[i], grid.yF[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, time)
+                                            - ∂y_afa(i, j, k, grid, ph)
+                                            + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, K)
+                                            + F.v(grid.xC[i], grid.yF[j], grid.zC[k], time, u, v, w, T, S, grid, i, j, k)
                                         )
 
             end
@@ -105,14 +107,14 @@ end
 
 
 "Calculate the source term for the w equation."
-function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F, time)
+function calc_w_source_term!(grid, constants, eos, closure, ph, u, v, w, T, S, Gw, K, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
-                                         + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                         + F.w(grid.xC[i], grid.yC[j], grid.zF[k], u, v, w, T, S, grid, i, j, k, time)
+                                         + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, K)
+                                         + F.w(grid.xC[i], grid.yC[j], grid.zF[k], time, u, v, w, T, S, grid, i, j, k)
                                         )
 
             end
@@ -123,14 +125,14 @@ function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
 end
 
 "Calculate the source term for the T equation."
-function calc_T_source_term!(grid, constants, eos, closure, u, v, w, T, S, GT, diffusivities, F, time)
+function calc_T_source_term!(grid, constants, eos, closure, u, v, w, T, S, GT, K, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
-                                         + ∇_κ_∇T(i, j, k, grid, T, closure, diffusivities)
-                                         + F.T(grid.xC[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, time)
+                                         + ∇_κ_∇T(i, j, k, grid, T, closure, K)
+                                         + F.T(grid.xC[i], grid.yC[j], grid.zC[k], time, u, v, w, T, S, grid, i, j, k)
                                         )
             end
         end
@@ -204,15 +206,15 @@ function idct_permute!(grid, ϕ, pNHS)
     @synchronize
 end
 
-function update_velocities_and_tracers!(grid, u, v, w, T, S, pNHS, Gu, Gv, Gw,
+function update_velocities_and_tracers!(grid, u, v, w, T, S, pn, Gu, Gv, Gw,
                                         GT, GS, Gpu, Gpv, Gpw, GpT, GpS, Δt)
 
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
-                @inbounds u[i, j, k] = u[i, j, k] + (Gu[i, j, k] - (δx_c2f(grid, pNHS, i, j, k) / grid.Δx)) * Δt
-                @inbounds v[i, j, k] = v[i, j, k] + (Gv[i, j, k] - (δy_c2f(grid, pNHS, i, j, k) / grid.Δy)) * Δt
-                @inbounds T[i, j, k] = T[i, j, k] + (GT[i, j, k] * Δt)
+                @inbounds u[i, j, k] = u[i, j, k] + (Gu[i, j, k] - ∂x_faa(i, j, k, grid, pn)) * Δt
+                @inbounds v[i, j, k] = v[i, j, k] + (Gv[i, j, k] - ∂y_afa(i, j, k, grid, pn)) * Δt
+                @inbounds T[i, j, k] = T[i, j, k] + GT[i, j, k] * Δt
             end
         end
     end
