@@ -76,27 +76,28 @@ function time_step!(model::Model{A}, Nt, Δt) where A <: Architecture
     return nothing
 end
 
-function time_step!(model, arch, grid, constants, eos, closure, forcing, pH, pN, U, ϕ, diffusivities, 
+function time_step!(model, arch, grid, constants, eos, closure, forcing, pH, pN, U, ϕ, diffusivities,
                     RHS, Gⁿ, G⁻, GU, Δt, χ, Txy, Bxy, Bxyz)
+
     # AB-2 preparation (could be done either before or after time-step):
     @launch dev(arch) threads=Txy blocks=Bxyz update_previous_source_terms!(grid, Gⁿ..., G⁻...)
 
     # Calc the right-hand-side of our PDE and store in Gⁿ:
     @launch dev(arch) threads=Txy blocks=Bxy update_hydrostatic_pressure!(pH, grid, constants, eos, ϕ...)
 
-    @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos, 
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_diffusivities!(diffusivities, grid, closure, eos,
                                                                   constants.g, U..., ϕ...)
 
-    @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ...,
                                                 Gⁿ[1], diffusivities, forcing, model.clock.time)
 
-    @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ...,
                                                 Gⁿ[2], diffusivities, forcing, model.clock.time)
 
-    @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ...,
                                                 Gⁿ[3], diffusivities, forcing, model.clock.time)
 
-    @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, U..., ϕ..., 
+    @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, U..., ϕ...,
                                                 Gⁿ[4], diffusivities, forcing, model.clock.time)
 
     calc_boundary_source_terms!(model)
@@ -109,7 +110,7 @@ function time_step!(model, arch, grid, constants, eos, closure, forcing, pH, pN,
     solve_for_pressure!(arch, model)
 
     # Use the pressure correction to complete the second AB-2 substep, obtaining uⁿ⁺¹:
-    @launch device(arch) threads=Txy blocks=Bxyz update_velocities_and_tracers!(grid, U..., ϕ..., pN, Gⁿ..., 
+    @launch device(arch) threads=Txy blocks=Bxyz update_velocities_and_tracers!(grid, U..., ϕ..., pN, Gⁿ...,
                                                                                 G⁻..., Δt)
 
     @launch device(arch) threads=Txy blocks=Bxy compute_w_from_continuity!(grid, U...)
@@ -161,14 +162,12 @@ function calc_boundary_source_terms!(model::Model{A}) where A <: Architecture
     eos =  model.eos
     closure = model.closure
     bcs = model.bcs
-    U = model.velocities
-    ϕ = model.tracers
-    G = model.G
 
     grav = model.constants.g
     t, iteration = clock.time, clock.iteration
-    u, v, w, T, S = U.u.data, U.v.data, U.w.data, ϕ.T.data, nothing
-    Gu, Gv, Gw, GT = G.Gu.data, G.Gv.data, G.Gw.data, G.GT.data
+    u, v, w = datatuple(model.velocities)
+    T, S = datatuple(model.tracers)
+    Gu, Gv, Gw, GT, GS = datatuple(model.G)
 
     Bx, By, Bz = floor(Int, Nx/Tx), floor(Int, Ny/Ty), Nz  # Blocks in grid
 
