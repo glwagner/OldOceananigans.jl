@@ -88,16 +88,16 @@ function time_step!(model, arch, grid, constants, eos, closure, forcing, pH, pN,
                                                                   constants.g, U..., ϕ...)
 
     @launch dev(arch) threads=Txy blocks=Bxyz calc_u_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
-                                                Gⁿ[1], diffusivities, forcing, model.clock)
+                                                Gⁿ[1], diffusivities, forcing, model.clock.time)
 
     @launch dev(arch) threads=Txy blocks=Bxyz calc_v_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
-                                                Gⁿ[2], diffusivities, forcing, model.clock)
+                                                Gⁿ[2], diffusivities, forcing, model.clock.time)
 
     @launch dev(arch) threads=Txy blocks=Bxyz calc_w_source_term!(grid, constants, eos, closure, pH, U..., ϕ..., 
-                                                Gⁿ[3], diffusivities, forcing, model.clock)
+                                                Gⁿ[3], diffusivities, forcing, model.clock.time)
 
     @launch dev(arch) threads=Txy blocks=Bxyz calc_T_source_term!(grid, constants, eos, closure, U..., ϕ..., 
-                                                Gⁿ[4], diffusivities, forcing, model.clock)
+                                                Gⁿ[4], diffusivities, forcing, model.clock.time)
 
     calc_boundary_source_terms!(model)
 

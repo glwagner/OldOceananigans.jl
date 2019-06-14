@@ -63,7 +63,7 @@ function update_previous_source_terms!(grid, Gu, Gv, Gw, GT, GS, Gpu, Gpv, Gpw, 
 end
 
 "Calculate the source term for the u equation."
-function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F, clock)
+function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gu, diffusivities, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -72,7 +72,7 @@ function calc_u_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
                                             + fv(grid, v, constants.f, i, j, k)
                                             - δx_c2f(grid, pHY′, i, j, k) / grid.Δx
                                             + ∂ⱼ_2ν_Σ₁ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            + F.u(grid.xF[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, clock)
+                                            + F.u(grid.xF[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, time)
                                         )
 
             end
@@ -84,7 +84,7 @@ end
 
 
 "Calculate the source term for the v equation."
-function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F, clock)
+function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gv, diffusivities, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -93,7 +93,7 @@ function calc_v_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
                                             - fu(grid, u, constants.f, i, j, k)
                                             - δy_c2f(grid, pHY′, i, j, k) / grid.Δy
                                             + ∂ⱼ_2ν_Σ₂ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                            + F.v(grid.xC[i], grid.yF[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, clock)
+                                            + F.v(grid.xC[i], grid.yF[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, time)
                                         )
 
             end
@@ -105,14 +105,14 @@ end
 
 
 "Calculate the source term for the w equation."
-function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F, clock)
+function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, S, Gw, diffusivities, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
                 @inbounds Gw[i, j, k] = (-u∇w(grid, u, v, w, i, j, k)
                                          + ∂ⱼ_2ν_Σ₃ⱼ(i, j, k, grid, closure, u, v, w, diffusivities)
-                                         + F.w(grid.xC[i], grid.yC[j], grid.zF[k], u, v, w, T, S, grid, i, j, k, clock)
+                                         + F.w(grid.xC[i], grid.yC[j], grid.zF[k], u, v, w, T, S, grid, i, j, k, time)
                                         )
 
             end
@@ -123,14 +123,14 @@ function calc_w_source_term!(grid, constants, eos, closure, pHY′, u, v, w, T, 
 end
 
 "Calculate the source term for the T equation."
-function calc_T_source_term!(grid, constants, eos, closure, u, v, w, T, S, GT, diffusivities, F, clock)
+function calc_T_source_term!(grid, constants, eos, closure, u, v, w, T, S, GT, diffusivities, F, time)
     @loop for k in (1:grid.Nz; blockIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
 
                 @inbounds GT[i, j, k] = (-div_flux(grid, u, v, w, T, i, j, k)
                                          + ∇_κ_∇T(i, j, k, grid, T, closure, diffusivities)
-                                         + F.T(grid.xC[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, clock)
+                                         + F.T(grid.xC[i], grid.yC[j], grid.zC[k], u, v, w, T, S, grid, i, j, k, time)
                                         )
             end
         end
