@@ -1,4 +1,4 @@
-import TurbulenceClosures: ∂x_faa, ∂y_afa
+using .TurbulenceClosures: ∂x_faa, ∂y_afa
 
 function ▶z_buoyancy_aaf(i, j, k, grid::Grid{FT}, eos, grav, T, S) where FT
     if k == 1
