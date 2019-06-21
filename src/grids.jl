@@ -64,7 +64,7 @@ function RegularCartesianGrid(T, N, L)
     # just what we need.
     Nx, Ny, Nz = N
     Lx, Ly, Lz = L
-    Hx, Hy, Hz = 1, 1, 0
+    Hx, Hy, Hz = 0, 0, 0
 
     Tx = Nx + 2*Hx
     Ty = Ny + 2*Hy
