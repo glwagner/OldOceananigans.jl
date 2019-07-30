@@ -1,7 +1,3 @@
-@hascuda using CUDAnative, CuArrays
-
-import GPUifyLoops: @launch, @loop, @unroll
-
 using Oceananigans.Operators
 
 const Tx = 16 # CUDA threads per x-block
@@ -93,7 +89,7 @@ function time_step!(model, Nt, Δt)
     return nothing
 end
 
-# dynamic launch configuration
+# Dynamic launch configuration
 function launch_config(grid, dims)
     return function (kernel)
         fun = kernel.fun
