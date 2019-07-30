@@ -134,7 +134,8 @@ using
     Statistics,
     LinearAlgebra,
     Printf,
-    FileIO
+    FileIO,
+    Distributed
 
 # Third-party modules
 using
@@ -142,12 +143,13 @@ using
     FFTW,
     StaticArrays,
     OffsetArrays,
-    JLD,
     JLD2,
     NetCDF
 
 import
     GPUifyLoops
+
+import GPUifyLoops: @launch, @loop, @unroll
 
 # Adapt an offset CuArray to work nicely with CUDA kernels.
 Adapt.adapt_structure(to, x::OffsetArray) = OffsetArray(adapt(to, parent(x)), x.offsets)
@@ -189,8 +191,8 @@ abstract type Metadata end
 abstract type ConstantsCollection end
 abstract type EquationOfState end
 abstract type Grid{T} end
-abstract type Field end
-abstract type FaceField <: Field end
+abstract type Field{A, G} end
+abstract type FaceField{A, G} <: Field{A, G} end
 abstract type FieldSet end
 abstract type OutputWriter end
 abstract type Diagnostic end

@@ -4,51 +4,51 @@ import Base:
     iterate, similar, *, +, -
 
 """
-    CellField{A<:AbstractArray, G<:Grid} <: Field
+    CellField{A<:AbstractArray, G<:Grid} <: Field{A, G}
 
 A cell-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct CellField{A<:AbstractArray, G<:Grid} <: Field
+struct CellField{A<:AbstractArray, G<:Grid} <: Field{A, G}
     data::A
     grid::G
 end
 
 """
-    FaceFieldX{A<:AbstractArray, G<:Grid} <: FaceField
+    FaceFieldX{A<:AbstractArray, G<:Grid} <: FaceField{A, G}
 
 An x-face-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct FaceFieldX{A<:AbstractArray, G<:Grid} <: FaceField
+struct FaceFieldX{A<:AbstractArray, G<:Grid} <: FaceField{A, G}
     data::A
     grid::G
 end
 
 """
-    FaceFieldY{A<:AbstractArray, G<:Grid} <: FaceField
+    FaceFieldY{A<:AbstractArray, G<:Grid} <: FaceField{A, G}
 
 A y-face-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct FaceFieldY{A<:AbstractArray, G<:Grid} <: FaceField
+struct FaceFieldY{A<:AbstractArray, G<:Grid} <: FaceField{A, G}
     data::A
     grid::G
 end
 
 """
-    FaceFieldZ{A<:AbstractArray, G<:Grid} <: Field
+    FaceFieldZ{A<:AbstractArray, G<:Grid} <: Field{A, G}
 
 A z-face-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct FaceFieldZ{A<:AbstractArray, G<:Grid} <: FaceField
+struct FaceFieldZ{A<:AbstractArray, G<:Grid} <: FaceField{A, G}
     data::A
     grid::G
 end
 
 """
-    EdgeField{A<:AbstractArray, G<:Grid} <: Field
+    EdgeField{A<:AbstractArray, G<:Grid} <: Field{A, G}
 
 An edge-centered field defined on a grid `G` whose values are stored in an `A`.
 """
-struct EdgeField{A<:AbstractArray, G<:Grid} <: Field
+struct EdgeField{A<:AbstractArray, G<:Grid} <: Field{A, G}
     data::A
     grid::G
 end
@@ -110,16 +110,17 @@ FaceFieldZ(arch, grid) = FaceFieldZ(zeros(arch, grid), grid)
 @inline setindex!(f::Field, v, inds...) = setindex!(f.data, v, inds...)
 
 @inline data(f::Field) = view(f.data, 1:f.grid.Nx, 1:f.grid.Ny, 1:f.grid.Nz)
-@inline ardata_view(f::Field) = view(f.data.parent, 1+f.grid.Hx:f.grid.Nx+f.grid.Hx, 1+f.grid.Hy:f.grid.Ny+f.grid.Hy, 1+f.grid.Hz:f.grid.Nz+f.grid.Hz)
+
+@inline ardata_view(f::Field) = view(f.data.parent, 1+f.grid.Hx:f.grid.Nx+f.grid.Hx, 
+                                                    1+f.grid.Hy:f.grid.Ny+f.grid.Hy, 
+                                                    1+f.grid.Hz:f.grid.Nz+f.grid.Hz)
+
 @inline ardata(f::Field) = f.data.parent[1+f.grid.Hx:f.grid.Nx+f.grid.Hx, 1+f.grid.Hy:f.grid.Ny+f.grid.Hy, 1+f.grid.Hz:f.grid.Nz+f.grid.Hz]
 @inline underlying_data(f::Field) = f.data.parent
 
 show(io::IO, f::Field) = show(io, f.data)
 
 iterate(f::Field, state=1) = iterate(f.data, state)
-
-set!(u::Field, v) = u.data .= convert(eltype(u.grid), v)
-set!(u::Field, v::Field) = @. u.data = v.data
 
 # Define +, -, and * on fields as element-wise calculations on their data. This
 # is only true for fields of the same type, e.g. when adding a FaceFieldY to
@@ -149,6 +150,30 @@ for ft in (:CellField, :FaceFieldX, :FaceFieldY, :FaceFieldZ, :EdgeField)
     end
 end
 
+set!(u::Field, v) = u.data .= convert(eltype(u.grid), v)
+set!(u::Field, v::Field) = @. u.data.parent = v.data.parent
+
+@hascuda architecture(::Field{<:OffsetArray{T, D, <:CuArray}}) where {T, D} = GPU()
+architecture(::Field{<:OffsetArray{T, D, <:Array}}) where {T, D} = CPU()
+
+function set!(u::Field, v::AbstractArray)
+    arch = architecture(u)
+    @launch device(arch) config=launch_config(u.grid, 3) set!(u.grid, u.data, v)
+    return nothing
+end
+
+"Copy `b` to `a`, where both array-like objects are on `grid`."
+function set!(grid, a, b)
+    @loop for k in (1:grid.Nz; (blockIdx().z - 1) * blockDim().z + threadIdx().z)
+        @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
+            @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
+                @inbounds a[i, j, k] = b[i, j, k]
+            end
+        end
+    end
+    return nothing
+end
+
 xnodes(ϕ::Field) = reshape(ϕ.grid.xC, ϕ.grid.Nx, 1, 1)
 ynodes(ϕ::Field) = reshape(ϕ.grid.yC, 1, ϕ.grid.Ny, 1)
 znodes(ϕ::Field) = reshape(ϕ.grid.zC, 1, 1, ϕ.grid.Nz)
@@ -168,7 +193,8 @@ function set_ic!(model; ics...)
         else
             ϕ = getproperty(model.tracers, fld)
         end
-        data(ϕ) .= ic.(nodes(ϕ)...)
+        initialdata = ic.(nodes(ϕ)...)
+        set!(ϕ, initialdata)
     end
     return nothing
 end
