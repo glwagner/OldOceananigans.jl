@@ -1,7 +1,3 @@
-using Distributed
-
-using NetCDF
-
 "A type for writing NetCDF output."
 mutable struct NetCDFOutputWriter <: OutputWriter
     dir::AbstractString
