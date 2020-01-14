@@ -24,8 +24,8 @@ Dynamics: Fundamentals and Large-Scale Circulation" (2ed, 2017).
 """
 LinearEquationOfState(FT=Float64; α=1.67e-4, β=7.80e-4) = LinearEquationOfState{FT}(α, β)
 
-@inline  thermal_expansion(Θ, Sᴬ, D, eos::LinearEquationOfState) = eos.α
-@inline haline_contraction(Θ, Sᴬ, D, eos::LinearEquationOfState) = eos.β
+@inline  thermal_expansion(Θ, sᴬ, D, eos::LinearEquationOfState) = eos.α
+@inline haline_contraction(Θ, sᴬ, D, eos::LinearEquationOfState) = eos.β
 
 # Shortcuts
 @inline  thermal_expansionᶜᶜᶜ(i, j, k, grid, eos::LinearEquationOfState, C) = eos.α
