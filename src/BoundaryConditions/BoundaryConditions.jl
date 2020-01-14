@@ -11,10 +11,11 @@ export
     apply_z_bcs!, apply_y_bcs!,
     fill_halo_regions!, zero_halo_regions!
 
-using CUDAnative
-
+using Oceananigans: @hascuda
 using Oceananigans.Architectures
 using Oceananigans.Fields
+
+@hascuda using CUDAnative
 
 include("boundary_condition_types.jl")
 include("boundary_condition.jl")
