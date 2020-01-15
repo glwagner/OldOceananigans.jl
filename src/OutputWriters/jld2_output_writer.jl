@@ -108,15 +108,15 @@ end
     jld2output!(path, iter, time, data, kwargs)
 
 Write the (name, value) pairs in `data`, including the simulation
-`time`, to the JLD2 file at `path` in the `timeseries` group,
+`time`, to the JLD2 file at `path` in the `time_series` group,
 stamping them with `iter` and using `kwargs` when opening
 the JLD2 file.
 """
 function jld2output!(path, iter, time, data, kwargs)
     jldopen(path, "r+"; kwargs...) do file
-        file["timeseries/t/$iter"] = time
+        file["time_series/t/$iter"] = time
         for (name, datum) in data
-            file["timeseries/$name/$iter"] = datum
+            file["time_series/$name/$iter"] = datum
         end
     end
     return nothing
