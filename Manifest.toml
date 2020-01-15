@@ -117,7 +117,6 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 [[FFTW]]
 deps = ["AbstractFFTs", "BinaryProvider", "Conda", "Libdl", "LinearAlgebra", "Reexport"]
 git-tree-sha1 = "4cfd3d43819228b9e73ab46600d0af0aa5cedceb"
-pinned = true
 uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 version = "1.1.0"
 
@@ -201,9 +200,9 @@ version = "0.9.5"
 
 [[NNlib]]
 deps = ["BinaryProvider", "Libdl", "LinearAlgebra", "Requires", "Statistics"]
-git-tree-sha1 = "135c0de4794d5e214b06f1fb4787af4a72896e61"
+git-tree-sha1 = "5b6c31d7265248f0e4b76f07ef9a9274e79c6281"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.6.2"
+version = "0.6.3"
 
 [[OffsetArrays]]
 git-tree-sha1 = "87d0a91efe29352d5caaa271ae3927083c096e33"
@@ -223,7 +222,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "0.3.10"
 
 [[Pkg]]
-deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
+deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Printf]]

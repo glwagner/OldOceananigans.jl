@@ -2,7 +2,7 @@
 ##### Dynamic launch configuration
 #####
 
-using CUDAdrv
+@hascuda using CUDAdrv
 
 function launch_config(grid, dims)
     return function (kernel)

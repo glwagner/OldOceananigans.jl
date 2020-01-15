@@ -13,6 +13,8 @@ export
     ordered_dict_show,
     with_tracers
 
+using Oceananigans: @hascuda
+
 include("adapt_structure.jl")
 include("units.jl")
 include("loop_macros.jl")
