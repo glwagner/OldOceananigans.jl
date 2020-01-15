@@ -9,9 +9,9 @@ Return an AdamsBashforthTimeStepper object with tendency
 fields on `arch` and `grid` and AB2 parameter `χ`.
 """
 struct AdamsBashforthTimeStepper{T, TG}
-      Gⁿ :: TG
-      G⁻ :: TG
-       χ :: T
+    Gⁿ :: TG
+    G⁻ :: TG
+     χ :: T
 end
 
 function AdamsBashforthTimeStepper(float_type, arch, grid, tracers, χ=0.125)
