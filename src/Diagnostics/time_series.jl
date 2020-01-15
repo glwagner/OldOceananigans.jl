@@ -1,9 +1,9 @@
 """
-    Timeseries{D, Ω, I, T, TT} <: AbstractDiagnostic
+    TimeSeries{D, Ω, I, T, TT} <: AbstractDiagnostic
 
-A diagnostic for collecting and storing timeseries.
+A diagnostic for collecting and storing time_series.
 """
-struct Timeseries{D, Ω, I, T, TT} <: AbstractDiagnostic
+struct TimeSeries{D, Ω, I, T, TT} <: AbstractDiagnostic
     diagnostic :: D
      frequency :: Ω
       interval :: I
@@ -12,16 +12,16 @@ struct Timeseries{D, Ω, I, T, TT} <: AbstractDiagnostic
 end
 
 """
-    Timeseries(diagnostic, model; frequency=nothing, interval=nothing)
+    TimeSeries(diagnostic, model; frequency=nothing, interval=nothing)
 
-A `Timeseries` `Diagnostic` that records a time series of `diagnostic(model)`.
+A `TimeSeries` `Diagnostic` that records a time series of `diagnostic(model)`.
 
 Example
 =======
 ```julia
 julia> model = Model(grid=RegularCartesianGrid(size=(16, 16, 16), length=(1, 1, 1)));
 
-julia> max_u = Timeseries(FieldMaximum(abs, model.velocities.u), model; frequency=1)
+julia> max_u = TimeSeries(FieldMaximum(abs, model.velocities.u), model; frequency=1)
 
 julia> model.diagnostics[:max_u] = max_u; data(model.velocities.u) .= π; time_step!(model, Nt=3, Δt=1e-16)
 
@@ -32,24 +32,24 @@ julia> max_u.data
  3.1415925323439517
 ```
 """
-function Timeseries(diagnostic, model; frequency=nothing, interval=nothing)
+function TimeSeries(diagnostic, model; frequency=nothing, interval=nothing)
     TD = typeof(diagnostic(model))
     TT = typeof(model.clock.time)
-    return Timeseries(diagnostic, frequency, interval, TD[], TT[])
+    return TimeSeries(diagnostic, frequency, interval, TD[], TT[])
 end
 
-@inline (timeseries::Timeseries)(model) = timeseries.diagnostic(model)
+@inline (time_series::TimeSeries)(model) = time_series.diagnostic(model)
 
-function run_diagnostic(model, diag::Timeseries)
+function run_diagnostic(model, diag::TimeSeries)
     push!(diag.data, diag(model))
     push!(diag.time, model.clock.time)
     return nothing
 end
 
 """
-    Timeseries(diagnostics::NamedTuple, model; frequency=nothing, interval=nothing)
+    TimeSeries(diagnostics::NamedTuple, model; frequency=nothing, interval=nothing)
 
-A `Timeseries` `Diagnostic` that records a `NamedTuple` of time series of
+A `TimeSeries` `Diagnostic` that records a `NamedTuple` of time series of
 `diag(model)` for each `diag` in `diagnostics`.
 
 Example
@@ -57,7 +57,7 @@ Example
 ```julia
 julia> model = Model(grid=RegularCartesianGrid(size=(16, 16, 16), length=(1, 1, 1))); Δt = 1.0;
 
-julia> cfl = Timeseries((adv=AdvectiveCFL(Δt), diff=DiffusiveCFL(Δt)), model; frequency=1);
+julia> cfl = TimeSeries((adv=AdvectiveCFL(Δt), diff=DiffusiveCFL(Δt)), model; frequency=1);
 
 julia> model.diagnostics[:cfl] = cfl; time_step!(model, Nt=3, Δt=Δt)
 
@@ -72,19 +72,19 @@ julia> cfl.adv
  0.0
 ```
 """
-function Timeseries(diagnostics::NamedTuple, model; frequency=nothing, interval=nothing)
+function TimeSeries(diagnostics::NamedTuple, model; frequency=nothing, interval=nothing)
     TT = typeof(model.clock.time)
     TDs = Tuple(typeof(diag(model)) for diag in diagnostics)
     data = NamedTuple{propertynames(diagnostics)}(Tuple(T[] for T in TDs))
-    return Timeseries(diagnostics, frequency, interval, data, TT[])
+    return TimeSeries(diagnostics, frequency, interval, data, TT[])
 end
 
-function (timeseries::Timeseries{<:NamedTuple})(model)
-    names = propertynames(timeseries.diagnostic)
-    return NamedTuple{names}(Tuple(diag(model) for diag in timeseries.diagnostics))
+function (time_series::TimeSeries{<:NamedTuple})(model)
+    names = propertynames(time_series.diagnostic)
+    return NamedTuple{names}(Tuple(diag(model) for diag in time_series.diagnostics))
 end
 
-function run_diagnostic(model, diag::Timeseries{<:NamedTuple})
+function run_diagnostic(model, diag::TimeSeries{<:NamedTuple})
     ntuple(Val(length(diag.diagnostic))) do i
         Base.@_inline_meta
         push!(diag.data[i], diag.diagnostic[i](model))
@@ -93,13 +93,13 @@ function run_diagnostic(model, diag::Timeseries{<:NamedTuple})
     return nothing
 end
 
-Base.getproperty(ts::Timeseries{<:NamedTuple}, name::Symbol) = get_timeseries_field(ts, name)
+Base.getproperty(ts::TimeSeries{<:NamedTuple}, name::Symbol) = get_time_series_field(ts, name)
 
-"Returns a field of timeseries, or a field of `timeseries.data` when possible."
-function get_timeseries_field(timeseries, name)
-    if name ∈ propertynames(timeseries)
-        return getfield(timeseries, name)
+"Returns a field of time_series, or a field of `time_series.data` when possible."
+function get_time_series_field(time_series, name)
+    if name ∈ propertynames(time_series)
+        return getfield(time_series, name)
     else
-        return getproperty(timeseries.data, name)
+        return getproperty(time_series.data, name)
     end
 end
