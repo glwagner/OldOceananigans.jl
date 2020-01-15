@@ -167,12 +167,12 @@ function calculate_explicit_substep!(tendencies, velocities, tracers, pressures,
 end
 
 """
-    complete_pressure_correction_step!(velocities, Δt, tracers, pressures, tendencies, model)
+    complete_pressure_correction_step!(velocities, tracers, Δt, pressures, tendencies, model)
 
 After calculating the pressure correction, complete the pressure correction step by updating
 the velocity and tracer fields.
 """
-function complete_pressure_correction_step!(velocities, Δt, tracers, pressures, tendencies, model)
+function complete_pressure_correction_step!(velocities, tracers, Δt, pressures, tendencies, model)
     update_solution!(velocities, tracers, model.architecture, model.grid, Δt, tendencies, pressures.pNHS)
 
     velocity_boundary_conditions = (u=model.boundary_conditions.solution.u,
@@ -183,7 +183,7 @@ function complete_pressure_correction_step!(velocities, Δt, tracers, pressures,
     fill_halo_regions!(velocities, velocity_boundary_conditions, model.architecture, model.grid,
                        boundary_condition_function_arguments(model)...)
 
-    compute_w_from_continuity!(model)
+    #compute_w_from_continuity!(model)
 
     return nothing
 end

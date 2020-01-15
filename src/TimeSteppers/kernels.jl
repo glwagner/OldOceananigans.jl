@@ -105,13 +105,12 @@ end
 Update the horizontal velocities u and v via
 
     `u^{n+1} = u^n + (Gu^{n+½} - δₓp_{NH} / Δx) Δt`
-
-Note that the vertical velocity is not explicitly time stepped.
 """
 function update_velocities!(U, grid, Δt, G, pNHS)
     @loop_xyz i j k grid begin
         @inbounds U.u[i, j, k] += (G.u[i, j, k] - ∂xᶠᵃᵃ(i, j, k, grid, pNHS)) * Δt
         @inbounds U.v[i, j, k] += (G.v[i, j, k] - ∂yᵃᶠᵃ(i, j, k, grid, pNHS)) * Δt
+        @inbounds U.w[i, j, k] += (G.w[i, j, k] - ∂zᵃᵃᶠ(i, j, k, grid, pNHS)) * Δt
     end
     return nothing
 end
@@ -120,10 +119,8 @@ end
 Update the horizontal velocities u and v via
 
     `u^{n+1} = u^n + Gu^{n+½} / Δt`
-
-Note that the vertical velocity is not explicitly time stepped.
 """
-function update_velocities!(U, grid, Δt, G, ::Nothing)
+function update_hydrostatic_velocities!(U, grid, Δt, G)
     @loop_xyz i j k grid begin
         @inbounds U.u[i, j, k] += G.u[i, j, k] * Δt
         @inbounds U.v[i, j, k] += G.v[i, j, k] * Δt
@@ -132,7 +129,7 @@ function update_velocities!(U, grid, Δt, G, ::Nothing)
 end
 
 """
-Update tracers via
+Update a tracer field via
 
     `c^{n+1} = c^n + Gc^{n+½} Δt`
 """
@@ -143,16 +140,28 @@ function update_tracer!(c, grid, Δt, Gc)
     return nothing
 end
 
-"Update the solution variables (velocities and tracers)."
-function update_solution!(U, C, arch, grid, Δt, G, pNHS)
-    @launch device(arch) config=launch_config(grid, :xyz) update_velocities!(U, grid, Δt, G, pNHS)
-
+"Update all tracer fields."
+function update_tracers!(C, arch, grid, Δt, G)
     for i in 1:length(C)
         @inbounds c = C[i]
         @inbounds Gc = G[i+3]
         @launch device(arch) config=launch_config(grid, :xyz) update_tracer!(c, grid, Δt, Gc)
     end
+    return nothing
+end
 
+"Update the solution variables (velocities and tracers) for non-hydrostatic problems."
+function update_solution!(U, C, arch, grid, Δt, G, pNHS)
+    @launch device(arch) config=launch_config(grid, :xyz) update_velocities!(U, grid, Δt, G, pNHS)
+    update_tracers!(C, arch, grid, Δt, G)
+    return nothing
+end
+
+"Update the solution variables (velocities and tracers) for hydrostatic problems."
+function update_solution!(U, C, arch, grid, Δt, G, ::Nothing)
+    @launch device(arch) config=launch_config(grid, :xyz) update_hydrostatic_velocities!(U, grid, Δt, G)
+    @launch device(arch) config=launch_config(grid, :xy) _compute_w_from_continuity!(U, grid)
+    update_tracers!(C, arch, grid, Δt, G)
     return nothing
 end
 

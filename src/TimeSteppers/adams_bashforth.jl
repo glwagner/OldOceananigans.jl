@@ -75,7 +75,7 @@ function time_step!(model::Model{<:AdamsBashforthTimeStepper}, Δt; euler=false)
 
     calculate_pressure_correction!(pressures.pNHS, Δt, Gⁿ, velocities, model)
 
-    complete_pressure_correction_step!(velocities, Δt, tracers, pressures, Gⁿ, model)
+    complete_pressure_correction_step!(velocities, tracers, Δt, pressures, Gⁿ, model)
 
     model.clock.time += Δt
     model.clock.iteration += 1
