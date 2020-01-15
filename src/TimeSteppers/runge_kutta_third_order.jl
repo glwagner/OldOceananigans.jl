@@ -8,23 +8,19 @@ using Oceananigans.Utils: datatuples
 Return an RungeKuttaTimeStepper object.
 """
 struct RungeKuttaTimeStepper{T}
+    G⁰ :: T
     G¹ :: T
-    G² :: T
 end
 
 function RungeKuttaTimeStepper(float_type, arch, grid, tracers)
+   G⁰ = Tendencies(arch, grid, tracers)
    G¹ = Tendencies(arch, grid, tracers)
-   G² = Tendencies(arch, grid, tracers)
-   return RungeKuttaTimeStepper{typeof(G¹)}(G¹, G²)
+   return RungeKuttaTimeStepper{typeof(G¹)}(G⁰, G¹)
 end
 
-# Special savepropety! for AB2 time stepper struct used by the checkpointer so
-# it only saves the fields and not the tendency BCs or χ value (as they can be
-# constructed by the `Model` constructor).
-function saveproperty!(file, location, ts::RungeKuttaTimeStepper)
-    saveproperty!(file, location * "/G¹", ts.G¹)
-    saveproperty!(file, location * "/G²", ts.G²)
-end
+# Special savepropety! for the RK3 time stepper struct, which can be
+# entirely reconstructed at any time-step.
+saveproperty!(file, location, ts::RungeKuttaTimeStepper) = nothing
 
 #####
 ##### Time steppping
@@ -75,33 +71,34 @@ function time_step!(model::Model{<:RungeKuttaTimeStepper}, Δt::FT) where FT
     U, C, pressures, diffusivities = datatuples(model.velocities, model.tracers, model.pressures, model.diffusivities)
 
     ϕ = pressures.pNHS
-    G¹, G² = datatuples(model.timestepper.G¹, model.timestepper.G²)
-    G³ = G¹ # Save some memory!
-    G⁰ = G¹ # Unused
+    G⁰, G¹ = datatuples(model.timestepper.G⁰, model.timestepper.G¹)
+    G² = G⁰ # Save some memory!
+    G⁻ = G⁰ # Unused because ζ¹ = 0
 
     tⁿ = model.clock.time
     
-    # First substep
-    calculate_tendencies!(G¹, U, C, pressures, diffusivities, model)
-    update_predictor_solution!(U, C, G¹, G⁰, γ¹, ζ¹, Δt, model.architecture, model.grid)
-    calculate_substep_pressure_correction!(ϕ, Δt, U, model)
-    update_substep_velocities(U, ϕ, Δt, model.grid)
-
-    # Second substep
+    # Advance to first substep
+    calculate_tendencies!(G⁰, U, C, pressures, diffusivities, model) # with solution at t = tⁿ.
+    update_predictor_solution!(U, C, G⁰, G⁻, γ¹, ζ¹, Δt, model.architecture, model.grid)
+    calculate_substep_pressure_correction!(ϕ, U, Δt, model)
+    update_substep_velocities!(U, ϕ, Δt, model.grid)
     model.clock.time = tⁿ + h¹
-    calculate_tendencies!(G², U, C, pressures, diffusivities, model)
-    update_predictor_solution!(U, C, G², G¹, γ², ζ², Δt, model.architecture, model.grid)
-    calculate_substep_pressure_correction!(ϕ, Δt, U, model)
-    update_substep_velocities(U, ϕ, Δt, model.grid)
 
-    # Third substep
-    model.clock.time = tⁿ + h²
-    calculate_tendencies!(G³, U, C, pressures, diffusivities, model)
-    update_predictor_solution!(U, C, G³, G², γ³, ζ³, Δt, model.architecture, model.grid)
-    calculate_substep_pressure_correction!(ϕ, Δt, U, model)
-    update_substep_velocities(U, ϕ, Δt, model.grid)
+    # Advance to second substep
+    calculate_tendencies!(G¹, U, C, pressures, diffusivities, model) # with solution at first substep
+    update_predictor_solution!(U, C, G¹, G⁰, γ², ζ², Δt, model.architecture, model.grid)
+    calculate_substep_pressure_correction!(ϕ, U, Δt, model)
+    update_substep_velocities!(U, ϕ, Δt, model.grid)
+    model.clock.time = tⁿ + h¹ + h²
 
+    # Complete third and final substep
+    calculate_tendencies!(G², U, C, pressures, diffusivities, model) # with solution at second substep
+    update_predictor_solution!(U, C, G², G¹, γ³, ζ³, Δt, model.architecture, model.grid)
+    calculate_substep_pressure_correction!(ϕ, U, Δt, model)
+    update_substep_velocities!(U, ϕ, Δt, model.grid)
     model.clock.time = tⁿ + Δt
+
+    # We done now.
     model.clock.iteration += 1
 
     return nothing
@@ -116,12 +113,12 @@ end
 
 Calculate the (nonhydrostatic) pressure correction associated with the velocity correction `velocities`, and step size `Δt`.
 """
-function calculate_substep_pressure_correction!(nonhydrostatic_pressure, Δt, velocities, model)
+function calculate_substep_pressure_correction!(nonhydrostatic_pressure, velocities, Δt, model)
     velocities_boundary_conditions = (u=model.boundary_conditions.tendency.u,
                                       v=model.boundary_conditions.tendency.v,
                                       w=model.boundary_conditions.tendency.w)
 
-    fill_halo_regions!(velocities, velocity_boundary_conditions, model.architecture,
+    fill_halo_regions!(velocities, velocities_boundary_conditions, model.architecture,
                        model.grid, boundary_condition_function_arguments(model)...)
 
     solve_for_RK3_pressure!(nonhydrostatic_pressure, model.pressure_solver,
@@ -159,7 +156,7 @@ function update_tracer!(c, Gcᵏ⁻¹, Gcᵏ⁻², γᵏ, ζᵏ, Δt, grid)
 end
 
 function update_tracers!(C, Gᵏ⁻¹, Gᵏ⁻², γᵏ, ζᵏ, Δt, arch, grid)
-    for i in 1:length(Cᵏ)
+    for i in 1:length(C)
         @inbounds c = C[i]
         @inbounds Gcᵏ⁻¹ = Gᵏ⁻¹[i]
         @inbounds Gcᵏ⁻² = Gᵏ⁻²[i]

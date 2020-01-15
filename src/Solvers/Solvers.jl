@@ -2,7 +2,7 @@ module Solvers
 
 export
     BatchedTridiagonalSolver, solve_batched_tridiagonal_system!,
-    PressureSolver, solve_for_pressure!
+    PressureSolver, solve_for_pressure!, solve_for_RK3_pressure!
 
 using Oceananigans.Architectures
 @hascuda using CUDAnative, CuArrays
