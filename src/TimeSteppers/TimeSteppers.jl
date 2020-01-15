@@ -112,12 +112,12 @@ function time_step_precomputations!(diffusivities, pressures, velocities, tracer
 end
 
 """
-    calculate_tendencies!(diffusivities, pressures, velocities, tracers, model)
+    _calculate_tendencies!(diffusivities, pressures, velocities, tracers, model)
 
 Calculate the interior and boundary contributions to tendency terms without the
 contribution from non-hydrostatic pressure.
 """
-function calculate_tendencies!(tendencies, velocities, tracers, pressures, diffusivities, model)
+function _calculate_tendencies!(tendencies, velocities, tracers, pressures, diffusivities, model)
 
     calculate_interior_source_terms!(tendencies, model.architecture, model.grid, model.coriolis, model.buoyancy,
                                      model.surface_waves, model.closure, velocities, tracers, pressures.pHY′,
@@ -156,13 +156,15 @@ end
 calculate_pressure_correction!(::Nothing, args...) = nothing
 
 """
-    calculate_explicit_substep!(tendencies, velocities, tracers, pressures, diffusivities, model)
-
-Calculate the initial and explicit substep of the two-step fractional step method with pressure correction.
-"""
-function calculate_explicit_substep!(tendencies, velocities, tracers, pressures, diffusivities, model)
-    time_step_precomputations!(diffusivities, pressures, velocities, tracers, model)
     calculate_tendencies!(tendencies, velocities, tracers, pressures, diffusivities, model)
+
+After making precomputations (such as filling halo regions for boundary conditions and calculating 
+nonlinear diffusivities), calculate the interior and boundary contributions to tendency terms without the
+contribution from non-hydrostatic pressure.
+"""
+function calculate_tendencies!(tendencies, velocities, tracers, pressures, diffusivities, model)
+    time_step_precomputations!(diffusivities, pressures, velocities, tracers, model)
+    _calculate_tendencies!(tendencies, velocities, tracers, pressures, diffusivities, model)
     return nothing
 end
 
@@ -190,5 +192,6 @@ end
 
 include("kernels.jl")
 include("adams_bashforth.jl")
+include("runge_kutta_third_order.jl")
 
 end # module

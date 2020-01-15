@@ -69,7 +69,7 @@ function time_step!(model::Model{<:AdamsBashforthTimeStepper}, Δt; euler=false)
 
     ab2_store_previous_source_terms!(G⁻, model.architecture, model.grid, Gⁿ)
 
-    calculate_explicit_substep!(Gⁿ, velocities, tracers, pressures, diffusivities, model)
+    calculate_tendencies!(Gⁿ, velocities, tracers, pressures, diffusivities, model)
 
     ab2_update_source_terms!(Gⁿ, model.architecture, model.grid, χ, G⁻)
 
