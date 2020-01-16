@@ -54,7 +54,9 @@ end
 Step forward one time step with a 3rd-order Runge-Kutta method per 
 Le and Moin (1991).
 """
-function time_step!(model::Model{<:RungeKuttaTimeStepper}, Δt::FT) where FT
+function time_step!(model::Model{<:RungeKuttaTimeStepper}, Δt)
+
+    FT = eltype(model.grid)
 
     # Constants per Le and Moin (1991)
     γ¹ = FT(8/15)

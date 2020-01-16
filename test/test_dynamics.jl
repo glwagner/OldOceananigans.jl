@@ -56,11 +56,11 @@ function test_diffusion_budget(field, model, κ, L)
     return isapprox(mean_init, mean(interior(field)))
 end
 
-function test_diffusion_cosine(fieldname)
+function test_diffusion_cosine(fieldname, timestepper)
     Nz, Lz, κ, m = 128, π/2, 1, 2
     grid = RegularCartesianGrid(size=(1, 1, Nz), length=(1, 1, Lz))
     closure = ConstantIsotropicDiffusivity(ν=κ, κ=κ)
-    model = Model(grid=grid, closure=closure, buoyancy=nothing)
+    model = Model(grid=grid, closure=closure, buoyancy=nothing, timestepper=timestepper)
     field = getmodelfield(fieldname, model)
 
     zC = model.grid.zC
