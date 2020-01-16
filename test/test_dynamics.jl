@@ -13,10 +13,10 @@ function relative_error(u_num, u, time)
     return mean((interior(u_num) .- interior(u_ans)).^2 ) / mean(interior(u_ans).^2)
 end
 
-function test_diffusion_simple(fieldname)
+function test_diffusion_simple(fieldname, timestepper)
     grid = RegularCartesianGrid(size=(1, 1, 16), length=(1, 1, 1))
     closure = ConstantIsotropicDiffusivity(ν=1, κ=1)
-    model = Model(grid=grid, closure=closure, buoyancy=nothing)
+    model = Model(grid=grid, closure=closure, buoyancy=nothing, timestepper=timestepper)
     field = getmodelfield(fieldname, model)
     value = π
     interior(field) .= value
@@ -26,10 +26,10 @@ function test_diffusion_simple(fieldname)
     return !any(@. !isapprox(value, field_data))
 end
 
-function test_diffusion_budget_default(fieldname)
+function test_diffusion_budget_default(fieldname, timestepper)
     grid = RegularCartesianGrid(size=(1, 1, 16), length=(1, 1, 1))
     closure = ConstantIsotropicDiffusivity(ν=1, κ=1)
-    model = Model(grid=grid, closure=closure, buoyancy=nothing)
+    model = Model(grid=grid, closure=closure, buoyancy=nothing, timestepper=timestepper)
     field = getmodelfield(fieldname, model)
     half_Nz = round(Int, model.grid.Nz/2)
     interior(field)[:, :,   1:half_Nz] .= -1
@@ -38,10 +38,10 @@ function test_diffusion_budget_default(fieldname)
     return test_diffusion_budget(field, model, model.closure.ν, model.grid.Lz)
 end
 
-function test_diffusion_budget_channel(fieldname)
+function test_diffusion_budget_channel(fieldname, timestepper)
     grid = RegularCartesianGrid(size=(1, 16, 4), length=(1, 1, 1))
     closure = ConstantIsotropicDiffusivity(ν=1, κ=1)
-    model = ChannelModel(grid=grid, closure=closure, buoyancy=nothing)
+    model = ChannelModel(grid=grid, closure=closure, buoyancy=nothing, timestepper=timestepper)
     field = getmodelfield(fieldname, model)
     half_Ny = round(Int, model.grid.Ny/2)
     interior(field)[:, 1:half_Ny,   :] .= -1
@@ -74,7 +74,7 @@ function test_diffusion_cosine(fieldname)
     return !any(@. !isapprox(field_numerical, diffusing_cosine(κ, m, zC, model.clock.time), atol=1e-6, rtol=1e-6))
 end
 
-function internal_wave_test(; N=128, Nt=10)
+function internal_wave_test(timestepper=:AdamsBashforth; N=128, Nt=10)
 
     # Internal wave parameters
      ν = κ = 1e-9
@@ -113,7 +113,8 @@ function internal_wave_test(; N=128, Nt=10)
     # Create a model where temperature = buoyancy.
     grid = RegularCartesianGrid(size=(N, 1, N), length=(L, L, L))
     closure = ConstantIsotropicDiffusivity(ν=ν, κ=κ)
-    model = Model(grid=grid, closure=closure, buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=f))
+    model = Model(grid=grid, closure=closure, buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=f),
+                  timestepper=timestepper)
 
     set!(model, u=u₀, v=v₀, w=w₀, b=b₀)
 
@@ -123,7 +124,7 @@ function internal_wave_test(; N=128, Nt=10)
     return relative_error(model.velocities.u, u, model.clock.time) < 1e-4
 end
 
-function passive_tracer_advection_test(; N=128, κ=1e-12, Nt=100)
+function passive_tracer_advection_test(timestepper=:AdamsBashforth; N=128, κ=1e-12, Nt=100)
     L, U, V = 1.0, 0.5, 0.8
     δ, x₀, y₀ = L/15, L/2, L/2
 
@@ -136,7 +137,7 @@ function passive_tracer_advection_test(; N=128, κ=1e-12, Nt=100)
 
     grid = RegularCartesianGrid(size=(N, N, 2), length=(L, L, L))
     closure = ConstantIsotropicDiffusivity(ν=κ, κ=κ)
-    model = Model(grid=grid, closure=closure)
+    model = Model(grid=grid, closure=closure, timestepper=timestepper)
 
     set!(model, u=u₀, v=v₀, T=T₀)
     time_step!(model, Nt, Δt)
@@ -150,7 +151,7 @@ Taylor-Green vortex test
 See: https://en.wikipedia.org/wiki/Taylor%E2%80%93Green_vortex#Taylor%E2%80%93Green_vortex_solution
      and p. 310 of "Nodal Discontinuous Galerkin Methods: Algorithms, Analysis, and Application" by Hesthaven & Warburton.
 """
-function taylor_green_vortex_test(arch; FT=Float64, N=64, Nt=10)
+function taylor_green_vortex_test(arch, timestepper=:AdamsBashforth; FT=Float64, N=64, Nt=10)
     Nx, Ny, Nz = N, N, 2
     Lx, Ly, Lz = 1, 1, 1
     ν = 1
@@ -167,7 +168,8 @@ function taylor_green_vortex_test(arch; FT=Float64, N=64, Nt=10)
                           grid = RegularCartesianGrid(FT; size=(Nx, Ny, Nz), length=(Lx, Ly, Lz)),
                        closure = ConstantIsotropicDiffusivity(FT; ν=1, κ=0),  # Turn off diffusivity.
                        tracers = nothing,
-                      buoyancy = nothing) # turn off buoyancy
+                      buoyancy = nothing,
+                   timestepper = timestepper)
 
     u₀(x, y, z) = u(x, y, z, 0)
     v₀(x, y, z) = v(x, y, z, 0)
@@ -201,42 +203,54 @@ end
     @info "Testing dynamics..."
 
     @testset "Simple diffusion" begin
-        @info "  Testing simple diffusion..."
-        for fieldname in (:u, :v, :T, :S)
-            @test test_diffusion_simple(fieldname)
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing simple diffusion for $timestepper time stepping..."
+            for fieldname in (:u, :v, :T, :S)
+                @test test_diffusion_simple(fieldname, timestepper)
+            end
         end
     end
 
     @testset "Budgets in isotropic diffusion" begin
-        @info "  Testing default model budgets with isotropic diffusion..."
-        for fieldname in (:u, :v, :T, :S)
-            @test test_diffusion_budget_default(fieldname)
-        end
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing default model budgets with isotropic diffusion for $timestepper time stepping..."
+            for fieldname in (:u, :v, :T, :S)
+                @test test_diffusion_budget_default(fieldname, timestepper)
+            end
 
-        for fieldname in (:u, :T, :S)
-            @test test_diffusion_budget_channel(fieldname)
+            for fieldname in (:u, :T, :S)
+                @test test_diffusion_budget_channel(fieldname, timestepper)
+            end
         end
     end
 
     @testset "Diffusion cosine" begin
-        @info "  Testing diffusion cosine..."
-        for fieldname in (:u, :v, :T, :S)
-            @test test_diffusion_cosine(fieldname)
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing diffusion cosine for $timestepper time stepping..."
+            for fieldname in (:u, :v, :T, :S)
+                @test test_diffusion_cosine(fieldname, timestepper)
+            end
         end
     end
 
     @testset "Passive tracer advection" begin
-        @info "  Testing passive tracer advection..."
-        @test passive_tracer_advection_test()
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing passive tracer advection for $timestepper time stepping..."
+            @test passive_tracer_advection_test(timestepper)
+        end
     end
 
     @testset "Internal wave" begin
-        @info "  Testing internal wave..."
-        @test internal_wave_test()
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing internal wave for $timestepper time stepping..."
+            @test internal_wave_test(timestepper)
+        end
     end
 
     @testset "Taylor-Green vortex" begin
-        @info "  Testing Taylor-Green vortex..."
-        @test taylor_green_vortex_test(CPU())
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing Taylor-Green vortex for $timestepper time stepping..."
+            @test taylor_green_vortex_test(CPU(), timestepper)
+        end
     end
 end

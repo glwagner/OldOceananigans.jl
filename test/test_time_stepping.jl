@@ -82,11 +82,12 @@ end
     stepped. It just initializes a cube shaped hot bubble perturbation in the center of the 3D domain to induce a
     velocity field.
 """
-function incompressible_in_time(arch, FT, Nt)
+function incompressible_in_time(arch, FT, timestepper, Nt)
     Nx, Ny, Nz = 32, 32, 32
     Lx, Ly, Lz = 10, 10, 10
 
-    model = Model(grid=RegularCartesianGrid(size=(Nx, Ny, Nz), length=(Lx, Ly, Lz)), architecture=arch, float_type=FT)
+    model = Model(grid=RegularCartesianGrid(size=(Nx, Ny, Nz), length=(Lx, Ly, Lz)), 
+                  timestepper=timestepper, architecture=arch, float_type=FT)
 
     grid = model.grid
     u, v, w = model.velocities.u, model.velocities.v, model.velocities.w
@@ -122,7 +123,7 @@ end
 Create a super-coarse eddying channel model with walls in the y and test that
 temperature is conserved after `Nt` time steps.
 """
-function tracer_conserved_in_channel(arch, FT, Nt)
+function tracer_conserved_in_channel(arch, FT, timestepper, Nt)
     Nx, Ny, Nz = 16, 32, 16
     Lx, Ly, Lz = 160e3, 320e3, 1024
 
@@ -132,6 +133,7 @@ function tracer_conserved_in_channel(arch, FT, Nt)
 
     model = ChannelModel(architecture = arch, float_type = FT,
                          grid = RegularCartesianGrid(size=(Nx, Ny, Nz), length=(Lx, Ly, Lz)),
+                         timestepper = timestepper,
                          closure = ConstantAnisotropicDiffusivity(νh=νh, νv=νv, κh=κh, κv=κv))
 
     Ty = 1e-4  # Meridional temperature gradient [K/m].
@@ -200,16 +202,20 @@ Closures = (ConstantIsotropicDiffusivity, ConstantAnisotropicDiffusivity,
     end
 
     @testset "Incompressibility" begin
-        @info "  Testing incompressibility..."
-        for arch in archs, FT in float_types, Nt in [1, 10, 100]
-            @test incompressible_in_time(arch, FT, Nt)
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing incompressibility for $timestepper time stepping..."
+            for arch in archs, FT in float_types, Nt in [1, 10, 100]
+                @test incompressible_in_time(arch, FT, timestepper, Nt)
+            end
         end
     end
 
     @testset "Tracer conservation in channel" begin
-        @info "  Testing tracer conservation in channel..."
-        for arch in archs, FT in float_types
-            @test tracer_conserved_in_channel(arch, FT, 10)
+        for timestepper in (:AdamsBashforth, :RungeKutta)
+            @info "  Testing tracer conservation in channel for $timestepper time stepping..."
+            for arch in archs, FT in float_types
+                @test tracer_conserved_in_channel(arch, FT, timestepper, 10)
+            end
         end
     end
 end
