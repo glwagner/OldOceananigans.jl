@@ -174,8 +174,8 @@ and step size `Δt` for the 3rd-order Runge-Kutta method described by Le and Moi
 """
 function calculate_pressure_correction!(nonhydrostatic_pressure, predictor_velocities, Δt, model)
     predictor_velocities_boundary_conditions = (u=model.boundary_conditions.tendency.u,
-                                      v=model.boundary_conditions.tendency.v,
-                                      w=model.boundary_conditions.tendency.w)
+                                                v=model.boundary_conditions.tendency.v,
+                                                w=model.boundary_conditions.tendency.w)
 
     fill_halo_regions!(predictor_velocities, predictor_velocities_boundary_conditions, model.architecture,
                        model.grid, boundary_condition_function_arguments(model)...)
